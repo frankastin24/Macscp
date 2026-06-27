@@ -5,6 +5,7 @@ import type { FileEntry } from "./shared/filesystem/FileEntry";
 import type { SftpConnectionConfig } from "./shared/sftp/SftpConnection";
 import type { TransferItem } from "./shared/transfers/TransferItem";
 import { IPC_CHANNELS } from "./shared/ipc/IpcChannels";
+import type { CompareEntry } from "./shared/compare/CompareEntry";
 contextBridge.exposeInMainWorld("macscp", {
     local: {
         listDirectory: (dirPath?: string): Promise<FileEntry[]> =>
@@ -37,5 +38,9 @@ contextBridge.exposeInMainWorld("macscp", {
                 ipcRenderer.removeListener(IPC_CHANNELS.transferProgress, listener);
             };
         },
+    },
+    compare: {
+        directories: (localPath: string, remotePath: string): Promise<CompareEntry[]> =>
+            ipcRenderer.invoke(IPC_CHANNELS.compareDirectories, localPath, remotePath),
     },
 });

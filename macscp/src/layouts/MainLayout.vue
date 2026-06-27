@@ -16,7 +16,8 @@
       </section>
 
     </main>
-<TransferQueue />
+    <ComparePanel />
+    <TransferQueue />
     <footer class="statusbar">
       Ready
     </footer>
@@ -29,6 +30,7 @@ import LocalExplorer from "../renderer/components/LocalExplorer.vue";
 import ConnectionPanel from "../renderer/components/ConnectionPanel.vue";
 import RemoteExplorer from "../renderer/components/RemoteExplorer.vue";
 import TransferQueue from "../renderer/components/queue/TransferQueue.vue";
+import ComparePanel from "../renderer/components/compare/ComparePanel.vue";
 </script>
 
 <style scoped>

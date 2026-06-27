@@ -6,6 +6,7 @@ import { explorerService } from "./backend/filesystem/ExplorerService";
 import { sftpService } from "./backend/sftp/SftpService";
 import { transferManager } from "./backend/transfers/TransferManager";
 import { IPC_CHANNELS } from "./shared/ipc/IpcChannels";
+import { compareEngine } from "./backend/compare/CompareEngine";
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
@@ -57,6 +58,15 @@ ipcMain.handle("sftp:disconnect", async () => {
 ipcMain.handle(IPC_CHANNELS.transferEnqueue, async (_event, item) => {
   return transferManager.enqueue(item);
 });
+ipcMain.handle(
+  IPC_CHANNELS.compareDirectories,
+  async (_event, localPath: string, remotePath: string) => {
+    const localEntries = await explorerService.listLocalDirectory(localPath);
+    const remoteEntries = await sftpService.listDirectory(remotePath);
+
+    return compareEngine.compare(localEntries, remoteEntries);
+  }
+);
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

@@ -33,6 +33,10 @@
           <td>{{ item.progress }}%</td>
           <td>{{ item.sourcePath }}</td>
           <td>{{ item.targetPath }}</td>
+          <td>
+  {{ item.status }}
+  <span v-if="item.error"> - {{ item.error }}</span>
+</td>
         </tr>
       </tbody>
     </table>
@@ -40,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { useTransferStore } from "../../../stores/transferStore";
+import { useTransferStore } from "../../stores/transferStore";
 
 const store = useTransferStore();
 

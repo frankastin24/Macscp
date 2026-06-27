@@ -9,7 +9,9 @@
       {{ loading ? "Testing..." : "Test Connection" }}
     </button>
     <button @click="addTestTransfer">Add Test Transfer</button>
-
+    <button @click="uploadSelected">Upload Selected</button>
+<button @click="downloadSelected">Download Selected</button>
+<button @click="compareDirectories">Compare</button>
     <span>{{ status }}</span>
   </div>
 </template>
@@ -17,10 +19,10 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-const host = ref("");
+const host = ref("tradeely.com");
 const port = ref(22);
-const username = ref("");
-const password = ref("");
+const username = ref("root");
+const password = ref("Fa2018@london");
 const loading = ref(false);
 const status = ref("");
 
@@ -46,7 +48,7 @@ async function test() {
     loading.value = false;
   }
 }
-import { useTransferStore } from "../../stores/transferStore";
+import { useTransferStore } from "../stores/transferStore";
 
 const transferStore = useTransferStore();
 
@@ -63,6 +65,65 @@ function addTestTransfer() {
   totalBytes: 100,
   createdAt: Date.now(),
 });
+}
+
+import type { FileEntry } from "../../shared/filesystem/FileEntry";
+
+import { useExplorerStore } from "../stores/explorerStore";
+
+const explorerStore = useExplorerStore();
+
+function joinRemote(base: string, name: string) {
+  if (base === "." || base === "/") return base === "/" ? `/${name}` : name;
+  return `${base.replace(/\/$/, "")}/${name}`;
+}
+
+async function uploadSelected() {
+  for (const entry of explorerStore.localSelection) {
+    if (entry.type !== "file") continue;
+
+    await window.macscp.transfers.enqueue({
+      id: crypto.randomUUID(),
+      direction: "upload",
+      sourcePath: entry.path,
+      targetPath: joinRemote(explorerStore.remotePath, entry.name),
+      filename: entry.name,
+      status: "queued",
+      progress: 0,
+      bytesTransferred: 0,
+      totalBytes: entry.size,
+      createdAt: Date.now(),
+    });
+  }
+}
+
+async function downloadSelected() {
+  for (const entry of explorerStore.remoteSelection) {
+    if (entry.type !== "file") continue;
+
+    await window.macscp.transfers.enqueue({
+      id: crypto.randomUUID(),
+      direction: "download",
+      sourcePath: entry.path,
+      targetPath: `${explorerStore.localPath.replace(/\/$/, "")}/${entry.name}`,
+      filename: entry.name,
+      status: "queued",
+      progress: 0,
+      bytesTransferred: 0,
+      totalBytes: entry.size,
+      createdAt: Date.now(),
+    });
+  }
+}
+import { useCompareStore } from "../stores/compareStore";
+
+const compareStore = useCompareStore();
+
+async function compareDirectories() {
+  await compareStore.compare(
+    explorerStore.localPath,
+    explorerStore.remotePath
+  );
 }
 </script>
 

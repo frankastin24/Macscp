@@ -17,6 +17,7 @@
     <table v-else>
       <thead>
         <tr>
+        <th>Status</th>
           <th @click="setSort('name')">Name {{ sortLabel('name') }}</th>
           <th @click="setSort('size')">Size {{ sortLabel('size') }}</th>
           <th @click="setSort('modifiedAt')">Modified {{ sortLabel('modifiedAt') }}</th>
@@ -31,6 +32,7 @@
     @click="selectEntry(entry, index, $event)"
     @dblclick="$emit('open', entry)"
   >
+    <td class="status-cell">{{ compareLabel(entry) }}</td>
     <td>{{ icon(entry.type) }} {{ entry.name }}</td>
     <td>{{ entry.type === "directory" ? "" : formatSize(entry.size) }}</td>
     <td>{{ formatDate(entry.modifiedAt) }}</td>
@@ -43,6 +45,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { FileEntry } from "../../../shared/filesystem/FileEntry";
+import type { CompareEntry } from "../../../shared/compare/CompareEntry";
 
 type SortKey = "name" | "size" | "modifiedAt";
 
@@ -54,6 +57,7 @@ const props = defineProps<{
   error?: string;
   emptyMessage?: string;
   canGoParent?: boolean;
+  compareEntries?: CompareEntry[];
 }>();
 
 const emit = defineEmits<{
@@ -159,6 +163,28 @@ function emitSelection() {
 
   emit("selectionChange", selected);
 }
+function compareFor(entry: FileEntry) {
+  return props.compareEntries?.find(compare => compare.name === entry.name);
+}
+
+function compareStatus(entry: FileEntry) {
+  return compareFor(entry)?.status || "";
+}
+
+function compareLabel(entry: FileEntry) {
+  const status = compareStatus(entry);
+
+  const labels: Record<string, string> = {
+    identical: "✓",
+    "local-only": "↑",
+    "remote-only": "↓",
+    "local-newer": "↑ newer",
+    "remote-newer": "↓ newer",
+    different: "⚠",
+  };
+
+  return labels[status] || "";
+}
 </script>
 
 <style scoped>
@@ -241,6 +267,37 @@ tr:hover {
 }
 tr.selected {
   background: #1f5f99;
+}
+
+tr.selected:hover {
+  background: #2670b8;
+}
+.status-cell {
+  width: 80px;
+  color: #aaa;
+}
+
+.identical {
+  color: #999;
+}
+
+.local-only,
+.local-newer {
+  color: #7ec8ff;
+}
+
+.remote-only,
+.remote-newer {
+  color: #ffc66d;
+}
+
+.different {
+  color: #ff7777;
+}
+
+tr.selected {
+  background: #1f5f99;
+  color: white;
 }
 
 tr.selected:hover {
