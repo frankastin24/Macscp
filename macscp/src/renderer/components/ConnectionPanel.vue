@@ -8,6 +8,7 @@
     <button @click="test" :disabled="loading">
       {{ loading ? "Testing..." : "Test Connection" }}
     </button>
+    <button @click="addTestTransfer">Add Test Transfer</button>
 
     <span>{{ status }}</span>
   </div>
@@ -44,6 +45,24 @@ async function test() {
   } finally {
     loading.value = false;
   }
+}
+import { useTransferStore } from "../../stores/transferStore";
+
+const transferStore = useTransferStore();
+
+function addTestTransfer() {
+ window.macscp.transfers.enqueue({
+  id: crypto.randomUUID(),
+  direction: "upload",
+  sourcePath: "/local/test.txt",
+  targetPath: "/remote/test.txt",
+  filename: "test.txt",
+  status: "queued",
+  progress: 0,
+  bytesTransferred: 0,
+  totalBytes: 100,
+  createdAt: Date.now(),
+});
 }
 </script>
 

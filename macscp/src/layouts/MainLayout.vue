@@ -7,12 +7,16 @@
     <ConnectionPanel />
     <main class="workspace">
 
-      <LocalExplorer />
+     <section class="pane">
+        <LocalExplorer />
+      </section>
 
-      <RemoteExplorer />
+      <section class="pane">
+        <RemoteExplorer />
+      </section>
 
     </main>
-
+<TransferQueue />
     <footer class="statusbar">
       Ready
     </footer>
@@ -24,6 +28,7 @@
 import LocalExplorer from "../renderer/components/LocalExplorer.vue";
 import ConnectionPanel from "../renderer/components/ConnectionPanel.vue";
 import RemoteExplorer from "../renderer/components/RemoteExplorer.vue";
+import TransferQueue from "../renderer/components/queue/TransferQueue.vue";
 </script>
 
 <style scoped>

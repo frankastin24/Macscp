@@ -1,5 +1,6 @@
 import type { FileEntry } from "../../shared/FileEntry";
-import type { SftpConnectionConfig } from "../../shared/sftp/SftpConnection";   
+import type { SftpConnectionConfig } from "../../shared/sftp/SftpConnection";  
+import type { TransferItem } from "../../shared/transfers/TransferItem"; 
 declare global {
   interface Window {
     macscp: {
@@ -12,6 +13,10 @@ declare global {
 listDirectory: (remotePath?: string) => Promise<FileEntry[]>;
 disconnect: () => Promise<void>;
       };
+      transfers: {
+  enqueue: (item: TransferItem) => Promise<TransferItem>;
+  onProgress: (callback: (item: TransferItem) => void) => () => void;
+};
     };
   }
 }

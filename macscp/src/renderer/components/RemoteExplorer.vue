@@ -1,31 +1,24 @@
 <template>
-  <section class="remote-explorer">
-    <div class="remote-header">
-      <strong>Remote</strong>
-      <button @click="refresh">⟳</button>
-    </div>
-
-    <div v-if="!connected" class="empty">
-      Not connected
-    </div>
-
-    <FileExplorerRemote
-      v-else
-      :entries="entries"
-      :current-path="currentPath"
-      :error="error"
-      @open="open"
-      @refresh="refresh"
-      @go-parent="goParent"
-      @go-path="goPath"
-    />
-  </section>
+  <Explorer
+    title="Remote"
+    :status="connected ? currentPath : 'Not connected'"
+    :entries="entries"
+    :current-path="currentPath"
+    :error="error"
+    :empty-message="connected ? '' : 'Not connected'"
+    :can-go-parent="connected && currentPath !== '.' && currentPath !== '/'"
+    @open="open"
+    @refresh="refresh"
+    @go-parent="goParent"
+    @go-path="goPath"
+    @selection-change="handleSelection"
+  />
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import type { FileEntry } from "../../shared/filesystem/FileEntry";
-import FileExplorerRemote from "./remote/FileExplorerRemote.vue";
+import Explorer from "./Explorer.vue";
 
 const connected = ref(false);
 const entries = ref<FileEntry[]>([]);
@@ -75,6 +68,10 @@ function handleConnected() {
   load(".");
 }
 
+function handleSelection(entries: FileEntry[]) {
+  console.log("Remote selected:", entries);
+}
+
 onMounted(() => {
   window.addEventListener("macscp:sftp-connected", handleConnected);
 });
@@ -83,25 +80,3 @@ onUnmounted(() => {
   window.removeEventListener("macscp:sftp-connected", handleConnected);
 });
 </script>
-
-<style scoped>
-.remote-explorer {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.remote-header {
-  height: 35px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  border-bottom: 1px solid #444;
-}
-
-.empty {
-  padding: 20px;
-  color: #aaa;
-}
-</style>
