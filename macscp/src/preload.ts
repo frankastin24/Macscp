@@ -4,12 +4,20 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { FileEntry } from "./shared/filesystem/FileEntry";
 import type { SftpConnectionConfig } from "./shared/sftp/SftpConnection";
 contextBridge.exposeInMainWorld("macscp", {
-  local: {
-    listDirectory: (dirPath?: string): Promise<FileEntry[]> =>
-      ipcRenderer.invoke("local:listDirectory", dirPath),
-  },
-  sftp: {
-    testConnection: (config: SftpConnectionConfig): Promise<boolean> =>
-      ipcRenderer.invoke("sftp:testConnection", config),
-  },
+    local: {
+        listDirectory: (dirPath?: string): Promise<FileEntry[]> =>
+            ipcRenderer.invoke("local:listDirectory", dirPath),
+    },
+    sftp: {
+        testConnection: (config: SftpConnectionConfig): Promise<boolean> =>
+            ipcRenderer.invoke("sftp:testConnection", config),
+        connect: (config: SftpConnectionConfig): Promise<boolean> =>
+            ipcRenderer.invoke("sftp:connect", config),
+
+        listDirectory: (remotePath?: string): Promise<FileEntry[]> =>
+            ipcRenderer.invoke("sftp:listDirectory", remotePath),
+
+        disconnect: (): Promise<void> =>
+            ipcRenderer.invoke("sftp:disconnect"),
+    },
 });

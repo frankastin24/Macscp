@@ -4,6 +4,7 @@ import started from 'electron-squirrel-startup';
 import { ipcMain } from "electron";
 import { explorerService } from "./backend/filesystem/ExplorerService";
 import { sftpService } from "./backend/sftp/SftpService";
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
@@ -38,6 +39,18 @@ ipcMain.handle("local:listDirectory", async (_event, dirPath?: string) => {
 
 ipcMain.handle("sftp:testConnection", async (_event, config) => {
   return sftpService.testConnection(config);
+});
+
+ipcMain.handle("sftp:connect", async (_event, config) => {
+  return sftpService.connect(config);
+});
+
+ipcMain.handle("sftp:listDirectory", async (_event, remotePath?: string) => {
+  return sftpService.listDirectory(remotePath);
+});
+
+ipcMain.handle("sftp:disconnect", async () => {
+  return sftpService.disconnect();
 });
 
 // This method will be called when Electron has finished

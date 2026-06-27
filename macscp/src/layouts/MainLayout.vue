@@ -9,9 +9,7 @@
 
       <LocalExplorer />
 
-      <section class="pane">
-        Remote
-      </section>
+      <RemoteExplorer />
 
     </main>
 
@@ -25,6 +23,7 @@
 <script setup lang="ts">
 import LocalExplorer from "../renderer/components/LocalExplorer.vue";
 import ConnectionPanel from "../renderer/components/ConnectionPanel.vue";
+import RemoteExplorer from "../renderer/components/RemoteExplorer.vue";
 </script>
 
 <style scoped>

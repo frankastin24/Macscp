@@ -28,12 +28,15 @@ async function test() {
   status.value = "";
 
   try {
-    await window.macscp.sftp.testConnection({
+    await window.macscp.sftp.connect({
       host: host.value,
       port: port.value,
       username: username.value,
       password: password.value,
     });
+
+    status.value = "Connected";
+    window.dispatchEvent(new CustomEvent("macscp:sftp-connected"));
 
     status.value = "Connected successfully";
   } catch (err) {

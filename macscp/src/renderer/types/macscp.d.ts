@@ -8,6 +8,9 @@ declare global {
       };
       sftp: {
         testConnection: (config: SftpConnectionConfig) => Promise<boolean>;
+        connect: (config: SftpConnectionConfig) => Promise<boolean>;
+listDirectory: (remotePath?: string) => Promise<FileEntry[]>;
+disconnect: () => Promise<void>;
       };
     };
   }
