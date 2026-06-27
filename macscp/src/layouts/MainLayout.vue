@@ -4,7 +4,7 @@
     <header class="toolbar">
       MacSCP
     </header>
-
+    <ConnectionPanel />
     <main class="workspace">
 
       <LocalExplorer />
@@ -24,6 +24,7 @@
 
 <script setup lang="ts">
 import LocalExplorer from "../renderer/components/LocalExplorer.vue";
+import ConnectionPanel from "../renderer/components/ConnectionPanel.vue";
 </script>
 
 <style scoped>
