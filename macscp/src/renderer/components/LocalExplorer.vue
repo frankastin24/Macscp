@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import type { FileEntry } from "../../shared/FileEntry";
+import type { FileEntry } from "../../shared/filesystem/FileEntry";
 
 const entries = ref<FileEntry[]>([]);
 const currentPath = ref("");

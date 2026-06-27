@@ -2,9 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { ipcMain } from "electron";
-import os from "node:os";
-import { listLocalDirectory } from "./backend/filesystem/localFileSystem";
-
+import { explorerService } from "./backend/filesystem/ExplorerService";
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
@@ -34,7 +32,7 @@ const createWindow = () => {
 };
 
 ipcMain.handle("local:listDirectory", async (_event, dirPath?: string) => {
-  return listLocalDirectory(dirPath || os.homedir());
+  return explorerService.listLocalDirectory(dirPath);
 });
 
 // This method will be called when Electron has finished
