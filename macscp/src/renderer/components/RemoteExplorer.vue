@@ -13,6 +13,8 @@
     @go-path="explorer.goToPath"
     @selection-change="explorer.setSelection"
     :compare-entries="compareStore.visible ? compareStore.entries : []"
+    side="remote"
+@context-action="handleContextAction"
   />
 </template>
 
@@ -46,4 +48,25 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("macscp:sftp-connected", handleConnected);
 });
+async function handleContextAction(payload: { action: string; entry: FileEntry }) {
+  if (payload.action === "refresh") {
+    explorer.refresh();
+    return;
+  }
+
+  if (payload.action === "download" && payload.entry.type === "file") {
+    await window.macscp.transfers.enqueue({
+      id: crypto.randomUUID(),
+      direction: "download",
+      sourcePath: payload.entry.path,
+      targetPath: `${explorerStore.localPath.replace(/\/$/, "")}/${payload.entry.name}`,
+      filename: payload.entry.name,
+      status: "queued",
+      progress: 0,
+      bytesTransferred: 0,
+      totalBytes: payload.entry.size,
+      createdAt: Date.now(),
+    });
+  }
+}
 </script>

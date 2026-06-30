@@ -73,10 +73,11 @@ import { useExplorerStore } from "../stores/explorerStore";
 
 const explorerStore = useExplorerStore();
 
-function joinRemote(base: string, name: string) {
-  if (base === "." || base === "/") return base === "/" ? `/${name}` : name;
-  return `${base.replace(/\/$/, "")}/${name}`;
-}
+import { joinRemotePath } from "../../shared/utils/remotePath";
+
+
+import { formatSize } from "../../../shared/utils/formatSize";
+import { formatDate } from "../../../shared/utils/formatDate";
 
 async function uploadSelected() {
   for (const entry of explorerStore.localSelection) {
@@ -86,7 +87,7 @@ async function uploadSelected() {
       id: crypto.randomUUID(),
       direction: "upload",
       sourcePath: entry.path,
-      targetPath: joinRemote(explorerStore.remotePath, entry.name),
+      targetPath: joinRemotePath(explorerStore.remotePath, entry.name),
       filename: entry.name,
       status: "queued",
       progress: 0,
@@ -105,7 +106,7 @@ async function downloadSelected() {
       id: crypto.randomUUID(),
       direction: "download",
       sourcePath: entry.path,
-      targetPath: `${explorerStore.localPath.replace(/\/$/, "")}/${entry.name}`,
+      targetPath: joinRemotePath(explorerStore.localPath, entry.name)   ,
       filename: entry.name,
       status: "queued",
       progress: 0,

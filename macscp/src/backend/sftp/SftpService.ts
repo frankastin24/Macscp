@@ -103,29 +103,55 @@ export class SftpService {
                 return a.name.localeCompare(b.name);
             });
     }
-    async uploadFile(localPath: string, remotePath: string): Promise<void> {
+    async uploadFile(
+        localPath: string,
+        remotePath: string,
+        onProgress?: (transferred: number, total: number) => void
+    ): Promise<void> {
         if (!this.sftp) {
             throw new Error("Not connected to SFTP server");
         }
 
         await new Promise<void>((resolve, reject) => {
-            this.sftp!.fastPut(localPath, remotePath, {}, err => {
-                if (err) reject(err);
-                else resolve();
-            });
+            this.sftp!.fastPut(
+                localPath,
+                remotePath,
+                {
+                    step: (transferred, _chunk, total) => {
+                        onProgress?.(transferred, total);
+                    },
+                },
+                err => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
         });
     }
 
-    async downloadFile(remotePath: string, localPath: string): Promise<void> {
+    async downloadFile(
+        remotePath: string,
+        localPath: string,
+        onProgress?: (transferred: number, total: number) => void
+    ): Promise<void> {
         if (!this.sftp) {
             throw new Error("Not connected to SFTP server");
         }
 
         await new Promise<void>((resolve, reject) => {
-            this.sftp!.fastGet(remotePath, localPath, {}, err => {
-                if (err) reject(err);
-                else resolve();
-            });
+            this.sftp!.fastGet(
+                remotePath,
+                localPath,
+                {
+                    step: (transferred, _chunk, total) => {
+                        onProgress?.(transferred, total);
+                    },
+                },
+                err => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
         });
     }
 }

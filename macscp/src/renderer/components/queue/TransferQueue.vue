@@ -9,9 +9,7 @@
       </div>
     </header>
 
-    <div v-if="store.items.length === 0" class="empty">
-      No transfers
-    </div>
+    <div v-if="store.items.length === 0" class="empty">No transfers</div>
 
     <table v-else>
       <thead>
@@ -20,6 +18,7 @@
           <th>File</th>
           <th>Status</th>
           <th>Progress</th>
+          <th>Transferred</th>
           <th>Source</th>
           <th>Target</th>
         </tr>
@@ -30,13 +29,21 @@
           <td>{{ item.direction }}</td>
           <td>{{ item.filename }}</td>
           <td>{{ item.status }}</td>
-          <td>{{ item.progress }}%</td>
+          <td>
+            <div class="progress-wrap">
+              <div class="progress-bar" :style="{ width: `${item.progress}%` }"></div>
+            </div>
+            <span>{{ item.progress }}%</span>
+          </td>
+          <td>
+  {{ formatSize(item.bytesTransferred) }} / {{ formatSize(item.totalBytes) }}
+</td>
           <td>{{ item.sourcePath }}</td>
           <td>{{ item.targetPath }}</td>
           <td>
-  {{ item.status }}
-  <span v-if="item.error"> - {{ item.error }}</span>
-</td>
+            {{ item.status }}
+            <span v-if="item.error"> - {{ item.error }}</span>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -46,6 +53,8 @@
 <script setup lang="ts">
 import { useTransferStore } from "../../stores/transferStore";
 
+import { formatSize } from "../../../shared/utils/formatSize";
+import { formatDate } from "../../../shared/utils/formatDate";
 const store = useTransferStore();
 
 import { onMounted, onUnmounted } from "vue";
@@ -53,7 +62,7 @@ import { onMounted, onUnmounted } from "vue";
 let unsubscribe: (() => void) | null = null;
 
 onMounted(() => {
-  unsubscribe = window.macscp.transfers.onProgress(item => {
+  unsubscribe = window.macscp.transfers.onProgress((item) => {
     store.upsert(item);
   });
 });
@@ -111,5 +120,17 @@ td {
   padding: 6px 8px;
   border-bottom: 1px solid #333;
   text-align: left;
+}
+.progress-wrap {
+  width: 120px;
+  height: 8px;
+  background: #333;
+  border: 1px solid #444;
+  margin-bottom: 3px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #4aa3ff;
 }
 </style>

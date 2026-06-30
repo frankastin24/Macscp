@@ -31,6 +31,7 @@
     :class="{ selected: selectedPaths.includes(entry.path) }"
     @click="selectEntry(entry, index, $event)"
     @dblclick="$emit('open', entry)"
+    @contextmenu.prevent="openContextMenu(entry, index, $event)"
   >
     <td class="status-cell">{{ compareLabel(entry) }}</td>
     <td>{{ icon(entry.type) }} {{ entry.name }}</td>
@@ -39,6 +40,25 @@
   </tr>
 </tbody>
     </table>
+    <div
+  v-if="contextMenu.visible"
+  class="context-menu"
+  :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+>
+  <button v-if="side === 'local'" @click="runContextAction('upload')">
+    Upload
+  </button>
+
+  <button v-if="side === 'remote'" @click="runContextAction('download')">
+    Download
+  </button>
+
+  <hr />
+
+  <button @click="runContextAction('refresh')">
+    Refresh
+  </button>
+</div>
   </section>
 </template>
 
@@ -58,6 +78,7 @@ const props = defineProps<{
   emptyMessage?: string;
   canGoParent?: boolean;
   compareEntries?: CompareEntry[];
+  side: "local" | "remote";
 }>();
 
 const emit = defineEmits<{
@@ -66,7 +87,20 @@ const emit = defineEmits<{
   goParent: [];
   goPath: [path: string];
   selectionChange: [entries: FileEntry[]];
+  contextAction: [payload: { action: string; entry: FileEntry }];
 }>();
+
+const contextMenu = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  entry: FileEntry | null;
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+  entry: null,
+});
 
 const pathInput = ref(props.currentPath);
 const sortKey = ref<SortKey>("name");
@@ -119,15 +153,8 @@ function icon(type: FileEntry["type"]) {
   return type === "directory" ? "📁" : "📄";
 }
 
-function formatSize(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function formatDate(timestamp: number) {
-  return new Date(timestamp).toLocaleString();
-}
+import { formatSize } from "../../shared/utils/formatSize";
+import { formatDate } from "../../shared/utils/formatDate";
 
 const selectedPaths = ref<string[]>([]);
 const lastSelectedIndex = ref<number | null>(null);
@@ -185,6 +212,41 @@ function compareLabel(entry: FileEntry) {
 
   return labels[status] || "";
 }
+function openContextMenu(entry: FileEntry, index: number, event: MouseEvent) {
+  if (!selectedPaths.value.includes(entry.path)) {
+    selectEntry(entry, index, event);
+  }
+
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    entry,
+  };
+}
+
+function closeContextMenu() {
+  contextMenu.value.visible = false;
+}
+
+function runContextAction(action: string) {
+  if (!contextMenu.value.entry) return;
+
+  emit("contextAction", {
+    action,
+    entry: contextMenu.value.entry,
+  });
+
+  closeContextMenu();
+}
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+onMounted(() => {
+  window.addEventListener("click", closeContextMenu);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("click", closeContextMenu);
+});
 </script>
 
 <style scoped>
@@ -302,5 +364,33 @@ tr.selected {
 
 tr.selected:hover {
   background: #2670b8;
+}
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 150px;
+  background: #252525;
+  border: 1px solid #555;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+}
+
+.context-menu button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 7px 10px;
+}
+
+.context-menu button:hover {
+  background: #3a3a3a;
+}
+
+.context-menu hr {
+  border: none;
+  border-top: 1px solid #444;
+  margin: 4px 0;
 }
 </style>

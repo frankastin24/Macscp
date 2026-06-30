@@ -56,15 +56,8 @@ function label(status: CompareStatus) {
   return labels[status];
 }
 
-function formatSize(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function formatDate(timestamp: number) {
-  return new Date(timestamp).toLocaleString();
-}
+import { formatSize } from "../../../shared/utils/formatSize";
+import { formatDate } from "../../../shared/utils/formatDate";
 </script>
 
 <style scoped>
