@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld("macscp", {
     local: {
         listDirectory: (dirPath?: string): Promise<FileEntry[]> =>
             ipcRenderer.invoke("local:listDirectory", dirPath),
+        walkDirectory: (dirPath: string): Promise<FileEntry[]> =>
+            ipcRenderer.invoke(IPC_CHANNELS.walkLocalDirectory, dirPath),
     },
     sftp: {
         testConnection: (config: SftpConnectionConfig): Promise<boolean> =>

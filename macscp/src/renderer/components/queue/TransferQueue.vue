@@ -51,19 +51,33 @@
 </template>
 
 <script setup lang="ts">
-import { useTransferStore } from "../../stores/transferStore";
-
-import { formatSize } from "../../../shared/utils/formatSize";
-import { formatDate } from "../../../shared/utils/formatDate";
-const store = useTransferStore();
-
 import { onMounted, onUnmounted } from "vue";
+import { useTransferStore } from "../../stores/transferStore";
+import { useRefreshStore } from "../../stores/refreshStore";
+import { formatSize } from "../../../shared/utils/formatSize";
+
+const store = useTransferStore();
+const refreshStore = useRefreshStore();
+
+const completedTransfers = new Set<string>();
 
 let unsubscribe: (() => void) | null = null;
 
 onMounted(() => {
-  unsubscribe = window.macscp.transfers.onProgress((item) => {
+  unsubscribe = window.macscp.transfers.onProgress(item => {
     store.upsert(item);
+
+    if (item.status === "completed" && !completedTransfers.has(item.id)) {
+      completedTransfers.add(item.id);
+
+      if (item.direction === "upload") {
+        refreshStore.refreshRemote();
+      }
+
+      if (item.direction === "download") {
+        refreshStore.refreshLocal();
+      }
+    }
   });
 });
 

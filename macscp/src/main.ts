@@ -67,6 +67,9 @@ ipcMain.handle(
     return compareEngine.compare(localEntries, remoteEntries);
   }
 );
+ipcMain.handle(IPC_CHANNELS.walkLocalDirectory, async (_event, dirPath: string) => {
+  return explorerService.walkLocalDirectory(dirPath);
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

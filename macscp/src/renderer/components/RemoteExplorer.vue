@@ -24,7 +24,8 @@ import Explorer from "./Explorer.vue";
 import { useExplorer } from "../composables/useExplorer";
 import { useExplorerStore } from "../stores/explorerStore";
 import { useCompareStore } from "../stores/compareStore";
-
+import { watch } from "vue";
+import { useRefreshStore } from "../stores/refreshStore";
 const compareStore = useCompareStore();
 const explorerStore = useExplorerStore();
 
@@ -35,6 +36,17 @@ const explorer = useExplorer({
   onPathChange: path => explorerStore.setRemotePath(path),
   onSelectionChange: entries => explorerStore.setRemoteSelection(entries),
 });
+
+const refreshStore = useRefreshStore();
+
+watch(
+  () => refreshStore.remoteRefreshToken,
+  () => {
+    if (explorerStore.remoteConnected) {
+      explorer.refresh();
+    }
+  }
+);
 
 async function handleConnected() {
   explorerStore.setRemoteConnected(true);

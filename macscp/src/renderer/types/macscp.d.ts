@@ -7,6 +7,7 @@ declare global {
         macscp: {
             local: {
                 listDirectory: (dirPath?: string) => Promise<FileEntry[]>;
+                walkDirectory: (dirPath: string) => Promise<FileEntry[]>;
             };
             compare: {
                 directories: (localPath: string, remotePath: string) => Promise<CompareEntry[]>;
