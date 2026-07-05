@@ -3,4 +3,5 @@ export const IPC_CHANNELS = {
   transferProgress: "transfer:progress",
   compareDirectories: "compare:directories",
   walkLocalDirectory: "local:walkDirectory",
+  walkRemoteDirectory: "sftp:walkDirectory",
 } as const;

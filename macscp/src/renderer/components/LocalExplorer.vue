@@ -16,6 +16,8 @@
     :compare-entries="compareStore.visible ? compareStore.entries : []"
     side="local"
     @context-action="handleContextAction"
+    @drag-start="handleDragStart"
+@drop-items="handleDropItems"
   />
 </template>
 
@@ -28,10 +30,12 @@ import { useExplorer } from "../composables/useExplorer";
 import { useExplorerStore } from "../stores/explorerStore";
 import { useCompareStore } from "../stores/compareStore";
 import { joinRemotePath } from "../../shared/utils/remotePath";
+import { useDragStore } from "../stores/dragStore";
 const refreshStore = useRefreshStore();
 
 const explorerStore = useExplorerStore();
 const compareStore = useCompareStore();
+const dragStore = useDragStore();
 const explorer = useExplorer({
   side: "local",
   initialPath: "Home",
@@ -98,5 +102,59 @@ async function handleContextAction(payload: { action: string; entry: FileEntry }
       }
     }
   }
+}
+function handleDragStart(entry: FileEntry) {
+  const selected = explorerStore.localSelection.some(item => item.path === entry.path)
+    ? explorerStore.localSelection
+    : [entry];
+
+  dragStore.start("local", selected);
+}
+
+async function handleDropItems() {
+  if (dragStore.source !== "remote") return;
+
+  for (const entry of dragStore.entries) {
+    await downloadEntry(entry);
+  }
+
+  dragStore.clear();
+}
+
+async function downloadEntry(entry: FileEntry) {
+  if (entry.type === "file") {
+    await queueDownloadFile(
+      entry,
+      `${explorerStore.localPath.replace(/\/$/, "")}/${entry.name}`
+    );
+  }
+
+  if (entry.type === "directory") {
+    const files = await window.macscp.sftp.walkDirectory(entry.path);
+
+    for (const file of files) {
+      if (file.type !== "file") continue;
+
+      const relativePath = file.path.replace(entry.path.replace(/\/$/, "") + "/", "");
+      const localTarget = `${explorerStore.localPath.replace(/\/$/, "")}/${entry.name}/${relativePath}`;
+
+      await queueDownloadFile(file, localTarget);
+    }
+  }
+}
+
+async function queueDownloadFile(entry: FileEntry, targetPath: string) {
+  await window.macscp.transfers.enqueue({
+    id: crypto.randomUUID(),
+    direction: "download",
+    sourcePath: entry.path,
+    targetPath,
+    filename: entry.name,
+    status: "queued",
+    progress: 0,
+    bytesTransferred: 0,
+    totalBytes: entry.size,
+    createdAt: Date.now(),
+  });
 }
 </script>

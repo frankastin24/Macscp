@@ -17,6 +17,7 @@ declare global {
                 connect: (config: SftpConnectionConfig) => Promise<boolean>;
                 listDirectory: (remotePath?: string) => Promise<FileEntry[]>;
                 disconnect: () => Promise<void>;
+                walkDirectory: (remotePath: string) => Promise<FileEntry[]>;
             };
             transfers: {
                 enqueue: (item: TransferItem) => Promise<TransferItem>;

@@ -1,72 +1,48 @@
 import { BrowserWindow } from "electron";
 import type { TransferItem } from "../../shared/transfers/TransferItem";
 import { IPC_CHANNELS } from "../../shared/ipc/IpcChannels";
-import { sftpService } from "../sftp/SftpService";
+import { UploadWorker } from "./workers/UploadWorker";
+import { DownloadWorker } from "./workers/DownloadWorker";
 
 export class TransferManager {
-    private items = new Map<string, TransferItem>();
-    private running = false;
+  private items = new Map<string, TransferItem>();
+  private running = false;
 
-    enqueue(item: TransferItem): TransferItem {
-        this.items.set(item.id, item);
-        this.sendUpdate(item);
-        this.processQueue();
-        return item;
+  private uploadWorker = new UploadWorker();
+  private downloadWorker = new DownloadWorker();
+
+  enqueue(item: TransferItem): TransferItem {
+    this.items.set(item.id, item);
+    this.sendUpdate(item);
+    void this.processQueue();
+    return item;
+  }
+
+  private async processQueue() {
+    if (this.running) return;
+
+    this.running = true;
+
+    while (true) {
+      const next = [...this.items.values()].find(item => item.status === "queued");
+
+      if (!next) break;
+
+      if (next.direction === "upload") {
+        await this.uploadWorker.run(next, item => this.sendUpdate(item));
+      } else {
+        await this.downloadWorker.run(next, item => this.sendUpdate(item));
+      }
     }
 
-    private async processQueue() {
-        if (this.running) return;
+    this.running = false;
+  }
 
-        this.running = true;
-
-        while (true) {
-            const next = [...this.items.values()].find(item => item.status === "queued");
-
-            if (!next) break;
-
-            await this.runTransfer(next);
-        }
-
-        this.running = false;
-    }
-
-    private async runTransfer(item: TransferItem) {
-        item.status = "running";
-        item.progress = 5;
-        this.sendUpdate(item);
-
-        try {
-            const onProgress = (transferred: number, total: number) => {
-                item.bytesTransferred = transferred;
-                item.totalBytes = total || item.totalBytes;
-                item.progress = item.totalBytes
-                    ? Math.round((transferred / item.totalBytes) * 100)
-                    : 0;
-
-                this.sendUpdate(item);
-            };
-
-            if (item.direction === "upload") {
-                await sftpService.uploadFile(item.sourcePath, item.targetPath, onProgress);
-            } else {
-                await sftpService.downloadFile(item.sourcePath, item.targetPath, onProgress);
-            }
-
-            item.progress = 100;
-            item.status = "completed";
-            this.sendUpdate(item);
-        } catch (err) {
-            item.status = "failed";
-            item.error = err instanceof Error ? err.message : "Transfer failed";
-            this.sendUpdate(item);
-        }
-    }
-
-    private sendUpdate(item: TransferItem) {
-        BrowserWindow.getAllWindows().forEach(win => {
-            win.webContents.send(IPC_CHANNELS.transferProgress, item);
-        });
-    }
+  private sendUpdate(item: TransferItem) {
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send(IPC_CHANNELS.transferProgress, { ...item });
+    });
+  }
 }
 
 export const transferManager = new TransferManager();

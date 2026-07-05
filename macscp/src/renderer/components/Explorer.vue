@@ -1,5 +1,10 @@
 <template>
-  <section class="explorer">
+  <section  class="explorer"
+  :class="{ 'drag-over': isDragOver }"
+  @dragenter.prevent="handleDragEnter"
+  @dragover.prevent
+  @dragleave="handleDragLeave"
+  @drop.prevent="handleDrop">
     <div class="explorer-header">
       <strong>{{ title }}</strong>
       <span>{{ status }}</span>
@@ -32,6 +37,8 @@
     @click="selectEntry(entry, index, $event)"
     @dblclick="$emit('open', entry)"
     @contextmenu.prevent="openContextMenu(entry, index, $event)"
+    draggable="true"
+@dragstart="handleDragStart(entry)"
   >
     <td class="status-cell">{{ compareLabel(entry) }}</td>
     <td>{{ icon(entry.type) }} {{ entry.name }}</td>
@@ -88,7 +95,13 @@ const emit = defineEmits<{
   goPath: [path: string];
   selectionChange: [entries: FileEntry[]];
   contextAction: [payload: { action: string; entry: FileEntry }];
+  dragStart: [entry: FileEntry];
+  dropItems: [];
 }>();
+
+function handleDragStart(entry: FileEntry) {
+  emit("dragStart", entry);
+}
 
 const contextMenu = ref<{
   visible: boolean;
@@ -119,6 +132,29 @@ watch(
     pathInput.value = value;
   }
 );
+
+const isDragOver = ref(false);
+const dragDepth = ref(0);
+
+function handleDragEnter() {
+  dragDepth.value++;
+  isDragOver.value = true;
+}
+
+function handleDragLeave() {
+  dragDepth.value--;
+
+  if (dragDepth.value <= 0) {
+    dragDepth.value = 0;
+    isDragOver.value = false;
+  }
+}
+
+function handleDrop() {
+  dragDepth.value = 0;
+  isDragOver.value = false;
+  emit("dropItems");
+}
 
 const sortedEntries = computed(() => {
   return [...props.entries].sort((a, b) => {
@@ -392,5 +428,10 @@ tr.selected:hover {
   border: none;
   border-top: 1px solid #444;
   margin: 4px 0;
+}
+.drag-over {
+  outline: 2px solid #4aa3ff;
+  outline-offset: -2px;
+  background: rgba(74, 163, 255, 0.08);
 }
 </style>

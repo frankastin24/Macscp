@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld("macscp", {
 
         disconnect: (): Promise<void> =>
             ipcRenderer.invoke("sftp:disconnect"),
+        walkDirectory: (remotePath: string): Promise<FileEntry[]> =>
+            ipcRenderer.invoke(IPC_CHANNELS.walkRemoteDirectory, remotePath),
     },
     transfers: {
         enqueue: (item: TransferItem): Promise<TransferItem> =>

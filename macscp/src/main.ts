@@ -71,6 +71,10 @@ ipcMain.handle(IPC_CHANNELS.walkLocalDirectory, async (_event, dirPath: string) 
   return explorerService.walkLocalDirectory(dirPath);
 });
 
+ipcMain.handle(IPC_CHANNELS.walkRemoteDirectory, async (_event, remotePath: string) => {
+  return sftpService.walkDirectory(remotePath);
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
