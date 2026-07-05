@@ -16,8 +16,8 @@
       </section>
 
     </main>
-    <ComparePanel />
-    <TransferQueue />
+    <TransferEventListener />
+    <TransferPopup />
     <StatusBar />
 
   </div>
@@ -28,8 +28,9 @@ import LocalExplorer from "../renderer/components/LocalExplorer.vue";
 import ConnectionPanel from "../renderer/components/ConnectionPanel.vue";
 import RemoteExplorer from "../renderer/components/RemoteExplorer.vue";
 import TransferQueue from "../renderer/components/queue/TransferQueue.vue";
-import ComparePanel from "../renderer/components/compare/ComparePanel.vue";
-import StatusBar from "../components/StatusBar.vue";
+import StatusBar from "../renderer/components/StatusBar.vue";
+import TransferPopup from "../renderer/components/transfers/TransferPopup.vue";
+import TransferEventListener from "../renderer/components/transfers/TransferEventListener.vue";
 </script>
 
 <style scoped>
@@ -49,15 +50,19 @@ import StatusBar from "../components/StatusBar.vue";
     color:white;
 }
 
-.workspace{
-    flex:1;
-    display:flex;
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.pane{
-    flex:1;
-    border-right:1px solid #444;
-    padding:15px;
+.pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid #444;
 }
 
 .statusbar{

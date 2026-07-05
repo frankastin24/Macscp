@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
-import Explorer from "./Explorer.vue";
+import Explorer from "./explorer/Explorer.vue";
 import { useExplorer } from "../composables/useExplorer";
 import { useExplorerStore } from "../stores/explorerStore";
 import { useCompareStore } from "../stores/compareStore";
@@ -42,7 +42,14 @@ const explorer = useExplorer({
   side: "remote",
   initialPath: ".",
   listDirectory: (path) => window.macscp.sftp.listDirectory(path),
-  onPathChange: (path) => explorerStore.setRemotePath(path),
+  onPathChange: path => {
+  explorerStore.setRemotePath(path);
+  compareStore.autoCompare(
+    explorerStore.localPath,
+    path,
+    explorerStore.remoteConnected
+  );
+},
   onSelectionChange: (entries) => explorerStore.setRemoteSelection(entries),
 });
 

@@ -9,7 +9,11 @@
       <strong>{{ title }}</strong>
       <span>{{ status }}</span>
     </div>
-
+    <BreadcrumbBar
+      :path="currentPath"
+      :side="side"
+      @navigate="$emit('go-path', $event)"
+    />
     <div class="explorer-toolbar">
       <button @click="$emit('go-parent')" :disabled="!canGoParent">⬆</button>
       <button @click="$emit('refresh')">⟳</button>
@@ -19,34 +23,27 @@
     <div v-if="error" class="error">{{ error }}</div>
     <div v-if="emptyMessage" class="empty">{{ emptyMessage }}</div>
 
-    <table v-else>
-      <thead>
-        <tr>
-        <th>Status</th>
-          <th @click="setSort('name')">Name {{ sortLabel('name') }}</th>
-          <th @click="setSort('size')">Size {{ sortLabel('size') }}</th>
-          <th @click="setSort('modifiedAt')">Modified {{ sortLabel('modifiedAt') }}</th>
-        </tr>
-      </thead>
+    <div class="list">
+  <div class="list-header">
+    <div>Status</div>
+    <div @click="setSort('name')">Name {{ sortLabel('name') }}</div>
+    <div @click="setSort('size')">Size {{ sortLabel('size') }}</div>
+    <div @click="setSort('modifiedAt')">Modified {{ sortLabel('modifiedAt') }}</div>
+  </div>
 
-      <tbody>
-  <tr
+  <ExplorerRow
     v-for="(entry, index) in sortedEntries"
     :key="entry.path"
-    :class="{ selected: selectedPaths.includes(entry.path) }"
-    @click="selectEntry(entry, index, $event)"
-    @dblclick="$emit('open', entry)"
-    @contextmenu.prevent="openContextMenu(entry, index, $event)"
-    draggable="true"
-@dragstart="handleDragStart(entry)"
-  >
-    <td class="status-cell">{{ compareLabel(entry) }}</td>
-    <td>{{ icon(entry.type) }} {{ entry.name }}</td>
-    <td>{{ entry.type === "directory" ? "" : formatSize(entry.size) }}</td>
-    <td>{{ formatDate(entry.modifiedAt) }}</td>
-  </tr>
-</tbody>
-    </table>
+    :entry="entry"
+    :index="index"
+    :selected="selectedPaths.includes(entry.path)"
+    :compare-status="compareStatus(entry)"
+    @select="payload => selectEntry(payload.entry, payload.index, payload.event)"
+    @open="$emit('open', $event)"
+    @context="payload => openContextMenu(payload.entry, payload.index, payload.event)"
+    @drag-start="handleDragStart"
+  />
+</div>
     <div
   v-if="contextMenu.visible"
   class="context-menu"
@@ -73,7 +70,8 @@
 import { computed, ref, watch } from "vue";
 import type { FileEntry } from "../../../shared/filesystem/FileEntry";
 import type { CompareEntry } from "../../../shared/compare/CompareEntry";
-
+import ExplorerRow from "./parts/ExplorerRow.vue";
+import BreadcrumbBar from "./parts/BreadcrumbBar.vue";
 type SortKey = "name" | "size" | "modifiedAt";
 
 const props = defineProps<{
@@ -328,30 +326,32 @@ input {
   padding: 5px 8px;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+.explorer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-thead {
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.list-header {
+  display: grid;
+  grid-template-columns: 85px minmax(180px, 1fr) 110px 180px;
   background: #2b2b2b;
-}
-
-th,
-td {
-  padding: 7px 8px;
-  border-bottom: 1px solid #333;
-  text-align: left;
-}
-
-th {
-  cursor: pointer;
+  border-bottom: 1px solid #444;
+  font-size: 12px;
+  color: #ddd;
   user-select: none;
 }
 
-tr:hover {
-  background: #333;
+.list-header > div {
+  padding: 7px 8px;
+  cursor: pointer;
 }
 
 .error {

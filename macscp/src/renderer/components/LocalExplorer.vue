@@ -25,12 +25,12 @@
 import { onMounted } from "vue";
 import { watch } from "vue";
 import { useRefreshStore } from "../stores/refreshStore";
-import Explorer from "./Explorer.vue";
+import Explorer from "./explorer/Explorer.vue";
 import { useExplorer } from "../composables/useExplorer";
 import { useExplorerStore } from "../stores/explorerStore";
-import { useCompareStore } from "../stores/compareStore";
 import { joinRemotePath } from "../../shared/utils/remotePath";
 import { useDragStore } from "../stores/dragStore";
+import { useCompareStore } from "../stores/compareStore";
 const refreshStore = useRefreshStore();
 
 const explorerStore = useExplorerStore();
@@ -41,7 +41,14 @@ const explorer = useExplorer({
   initialPath: "Home",
   listDirectory: (path) =>
     window.macscp.local.listDirectory(path === "Home" ? undefined : path),
-  onPathChange: (path) => explorerStore.setLocalPath(path),
+  onPathChange: path => {
+  explorerStore.setLocalPath(path);
+  compareStore.autoCompare(
+    path,
+    explorerStore.remotePath,
+    explorerStore.remoteConnected
+  );
+},
   onSelectionChange: (entries) => explorerStore.setLocalSelection(entries),
 });
 

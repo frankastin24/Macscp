@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import type { CompareEntry } from "../../shared/compare/CompareEntry";
-
+let autoCompareTimer: ReturnType<typeof setTimeout> | null = null;
 export const useCompareStore = defineStore("compare", {
   state: () => ({
     entries: [] as CompareEntry[],
@@ -27,5 +27,17 @@ export const useCompareStore = defineStore("compare", {
     close() {
       this.visible = false;
     },
+    autoCompare(localPath: string, remotePath: string, remoteConnected: boolean) {
+      if (!remoteConnected) return;
+      if (!localPath || !remotePath) return;
+
+      if (autoCompareTimer) {
+        clearTimeout(autoCompareTimer);
+      }
+
+      autoCompareTimer = setTimeout(() => {
+        this.compare(localPath, remotePath);
+      }, 500);
+    }
   },
 });
