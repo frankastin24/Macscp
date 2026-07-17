@@ -6,6 +6,8 @@ import type { SftpConnectionConfig } from "./shared/sftp/SftpConnection";
 import type { TransferItem } from "./shared/transfers/TransferItem";
 import { IPC_CHANNELS } from "./shared/ipc/IpcChannels";
 import type { CompareEntry } from "./shared/compare/CompareEntry";
+import type { SavedSession } from "./shared/sessions/Session";
+import type { WatchConfig } from "./shared/watch/WatchConfig";
 contextBridge.exposeInMainWorld("macscp", {
     local: {
         listDirectory: (dirPath?: string): Promise<FileEntry[]> =>
@@ -47,4 +49,28 @@ contextBridge.exposeInMainWorld("macscp", {
         directories: (localPath: string, remotePath: string): Promise<CompareEntry[]> =>
             ipcRenderer.invoke(IPC_CHANNELS.compareDirectories, localPath, remotePath),
     },
+    sessions: {
+        list: (): Promise<SavedSession[]> =>
+            ipcRenderer.invoke(IPC_CHANNELS.sessionList),
+
+        save: (session: SavedSession, password?: string): Promise<SavedSession> =>
+            ipcRenderer.invoke(IPC_CHANNELS.sessionSave, session, password),
+        getDecryptedPassword: (sessionId: string): Promise<string> =>
+            ipcRenderer.invoke("session:getDecryptedPassword", sessionId),
+
+        delete: (id: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.sessionDelete, id),
+
+    },
+    watch: {
+        start: (config: WatchConfig) =>
+            ipcRenderer.invoke(IPC_CHANNELS.watchStart, config),
+
+        stop: () =>
+            ipcRenderer.invoke(IPC_CHANNELS.watchStop),
+
+        status: () =>
+            ipcRenderer.invoke(IPC_CHANNELS.watchStatus),
+    },
+
 });

@@ -7,6 +7,8 @@ import { sftpService } from "./backend/sftp/SftpService";
 import { transferManager } from "./backend/transfers/TransferManager";
 import { IPC_CHANNELS } from "./shared/ipc/IpcChannels";
 import { compareEngine } from "./backend/compare/CompareEngine";
+import { sessionService } from "./backend/sessions/SessionService"; 
+import { watchSyncService } from "./backend/watch/WatchSyncService";
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
@@ -74,6 +76,49 @@ ipcMain.handle(IPC_CHANNELS.walkLocalDirectory, async (_event, dirPath: string) 
 ipcMain.handle(IPC_CHANNELS.walkRemoteDirectory, async (_event, remotePath: string) => {
   return sftpService.walkDirectory(remotePath);
 });
+
+ipcMain.handle(IPC_CHANNELS.sessionList, async () => {
+  return sessionService.list();
+});
+
+ipcMain.handle(IPC_CHANNELS.sessionSave, async (_event, session, password?: string) => {
+  const encryptedPassword = password
+    ? sessionService.encryptPassword(password)
+    : session.encryptedPassword;
+
+  return sessionService.save({
+    ...session,
+    encryptedPassword,
+    hasPassword: Boolean(encryptedPassword),
+  });
+});
+
+ipcMain.handle("session:getDecryptedPassword", async (_event, sessionId: string) => {
+  const sessions = await sessionService.list();
+  const session = sessions.find(item => item.id === sessionId);
+
+  if (!session?.encryptedPassword) return "";
+
+  return sessionService.decryptPassword(session.encryptedPassword);
+});
+
+ipcMain.handle(IPC_CHANNELS.sessionDelete, async (_event, id: string) => {
+  return sessionService.delete(id);
+});
+
+ipcMain.handle(IPC_CHANNELS.watchStart, async (_event, config) => {
+  return watchSyncService.start(config);
+});
+
+ipcMain.handle(IPC_CHANNELS.watchStop, async () => {
+  return watchSyncService.stop();
+});
+
+ipcMain.handle(IPC_CHANNELS.watchStatus, async () => {
+  return watchSyncService.status();
+});
+
+
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

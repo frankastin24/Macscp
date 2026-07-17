@@ -39,6 +39,7 @@
     "vue-tsc": "^3.3.5"
   },
   "dependencies": {
+    "chokidar": "^5.0.0",
     "electron-squirrel-startup": "^1.0.1",
     "pinia": "^3.0.4",
     "ssh2": "^1.17.0",

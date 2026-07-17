@@ -4,4 +4,10 @@ export const IPC_CHANNELS = {
   compareDirectories: "compare:directories",
   walkLocalDirectory: "local:walkDirectory",
   walkRemoteDirectory: "sftp:walkDirectory",
+  sessionList: "session:list",
+  sessionSave: "session:save",
+  sessionDelete: "session:delete",
+  watchStart: "watch:start",
+  watchStop: "watch:stop",
+  watchStatus: "watch:status",
 } as const;
