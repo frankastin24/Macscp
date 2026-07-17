@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import { watch } from "vue";
 import { useRefreshStore } from "../stores/refreshStore";
 import Explorer from "./explorer/Explorer.vue";
@@ -59,7 +59,19 @@ watch(
   }
 );
 
-onMounted(() => explorer.load());
+async function handleConnected() {
+  const localPath = explorerStore.localPath;
+  await explorer.load(localPath === "Home" ? undefined : localPath);
+}
+
+onMounted(() => {
+  explorer.load();
+  window.addEventListener("macscp:sftp-connected", handleConnected);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("macscp:sftp-connected", handleConnected);
+});
 
 async function queueUploadFile(
   entry: FileEntry,

@@ -65,8 +65,9 @@ watch(
 );
 
 async function handleConnected() {
+  const remotePath = explorerStore.remotePath || ".";
   explorerStore.setRemoteConnected(true);
-  await explorer.load(".");
+  await explorer.load(remotePath);
 }
 
 onMounted(() => {

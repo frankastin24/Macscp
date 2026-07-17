@@ -73,8 +73,8 @@ async function connect() {
     });
 
     status.value = "Connected";
-    window.dispatchEvent(new CustomEvent("macscp:sftp-connected"));
     connectionStore.setConnected(true);
+    window.dispatchEvent(new CustomEvent("macscp:sftp-connected"));
 
     status.value = "Connected successfully";
   } catch (err) {
