@@ -4,10 +4,8 @@
 import { onMounted, onUnmounted } from "vue";
 import { useTransferStore } from "../../stores/transferStore";
 import { useRefreshStore } from "../../stores/refreshStore";
-import { useExplorerStore } from "../../stores/explorerStore";
-import { useCompareStore } from "../../stores/compareStore";
-const explorerStore = useExplorerStore();
-const compareStore = useCompareStore();
+import { useTabStore } from "../../stores/tabStore";
+const tabStore = useTabStore();
 
 const store = useTransferStore();
 const refreshStore = useRefreshStore();
@@ -23,17 +21,21 @@ onMounted(() => {
       completedTransfers.add(item.id);
 
       if (item.direction === "upload") {
-        refreshStore.refreshRemote();
+        refreshStore.refreshRemote(item.tabId);
       }
 
       if (item.direction === "download") {
-        refreshStore.refreshLocal();
+        refreshStore.refreshLocal(item.tabId);
       }
-      compareStore.autoCompare(
-  explorerStore.localPath,
-  explorerStore.remotePath,
-  explorerStore.remoteConnected
-);
+      const tab = tabStore.tabsById[item.tabId];
+      if (tab?.connection.state === "connected") {
+        void window.macscp.compare.directories(item.tabId, tab.localPath, tab.remotePath)
+          .then(entries => {
+            if (!tabStore.tabsById[item.tabId]) return;
+            tab.compareEntries = entries;
+            tab.compareVisible = true;
+          });
+      }
     }
   });
 });

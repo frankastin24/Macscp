@@ -3,9 +3,9 @@
     class="row"
     :class="[compareStatus, { selected }]"
     draggable="true"
-    @click="$emit('select', eventEntry)"
+    @click="emitPointerEvent('select', $event)"
     @dblclick="$emit('open', entry)"
-    @contextmenu.prevent="$emit('context', eventEntry)"
+    @contextmenu.prevent="emitPointerEvent('context', $event)"
     @dragstart="$emit('drag-start', entry)"
   >
     <div class="cell status">{{ compareLabel }}</div>
@@ -36,18 +36,21 @@ const props = defineProps<{
   compareStatus?: CompareStatus | "";
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   select: [payload: { entry: FileEntry; index: number; event: MouseEvent }];
   open: [entry: FileEntry];
   context: [payload: { entry: FileEntry; index: number; event: MouseEvent }];
-  dragStart: [entry: FileEntry];
+  "drag-start": [entry: FileEntry];
 }>();
 
-const eventEntry = computed(() => ({
-  entry: props.entry,
-  index: props.index,
-  event: window.event as MouseEvent,
-}));
+function emitPointerEvent(type: "select" | "context", event: MouseEvent) {
+  const payload = { entry: props.entry, index: props.index, event };
+  if (type === "select") {
+    emit("select", payload);
+  } else {
+    emit("context", payload);
+  }
+}
 
 const icon = computed(() => {
   if (props.entry.type === "directory") return "📁";

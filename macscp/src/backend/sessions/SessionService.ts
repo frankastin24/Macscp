@@ -38,8 +38,6 @@ export class SessionService {
       this.filePath,
       JSON.stringify(sessions.filter(item => item.id !== id), null, 2)
     );
-
-    await this.deletePassword(id);
   }
   encryptPassword(password: string): string | undefined {
     if (!password) return undefined;

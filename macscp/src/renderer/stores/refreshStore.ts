@@ -2,17 +2,17 @@ import { defineStore } from "pinia";
 
 export const useRefreshStore = defineStore("refresh", {
   state: () => ({
-    localRefreshToken: 0,
-    remoteRefreshToken: 0,
+    localRefreshTokens: {} as Record<string, number>,
+    remoteRefreshTokens: {} as Record<string, number>,
   }),
 
   actions: {
-    refreshLocal() {
-      this.localRefreshToken++;
+    refreshLocal(tabId: string) {
+      this.localRefreshTokens[tabId] = (this.localRefreshTokens[tabId] || 0) + 1;
     },
 
-    refreshRemote() {
-      this.remoteRefreshToken++;
+    refreshRemote(tabId: string) {
+      this.remoteRefreshTokens[tabId] = (this.remoteRefreshTokens[tabId] || 0) + 1;
     },
   },
 });

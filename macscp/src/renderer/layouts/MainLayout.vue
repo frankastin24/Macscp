@@ -4,43 +4,35 @@
     <header class="toolbar">
       MacSCP
     </header>
-    <ConnectionPanel />
-    <SessionPanel @load-session="loadSession" />
-    <main class="workspace">
-
-     <section class="pane">
-        <LocalExplorer />
-      </section>
-
-      <section class="pane">
-        <RemoteExplorer />
-      </section>
-
-    </main>
+    <TabBar />
+    <div class="main-area">
+      <SessionPanel @load-session="loadSession" />
+      <div class="workspaces">
+        <SessionWorkspace
+          v-for="tab in tabStore.tabs"
+          v-show="tab.tabId === tabStore.activeTabId"
+          :key="tab.tabId"
+          :tab-id="tab.tabId"
+        />
+      </div>
+    </div>
     <TransferEventListener />
-    <TransferPopup />
-    <StatusBar />
-    <SessionPathSync />
 
   </div>
 </template>
 
 <script setup lang="ts">
-import LocalExplorer from "../components/LocalExplorer.vue";
-import ConnectionPanel from "../components/ConnectionPanel.vue";
-import RemoteExplorer from "../components/RemoteExplorer.vue";
-import TransferQueue from "../components/queue/TransferQueue.vue";
-import StatusBar from "../components/StatusBar.vue";
-import TransferPopup from "../components/transfers/TransferPopup.vue";
 import TransferEventListener from "../components/transfers/TransferEventListener.vue";
 import SessionPanel from "../components/sessions/SessionPanel.vue";
-import { useSessionStore } from "../stores/sessionStore";
 import type { SavedSession } from "../../shared/sessions/Session";
-import SessionPathSync from "../components/sessions/SessionPathSync.vue";
-const sessionStore = useSessionStore();
+import TabBar from "../components/tabs/TabBar.vue";
+import SessionWorkspace from "../components/tabs/SessionWorkspace.vue";
+import { useTabStore } from "../stores/tabStore";
+const tabStore = useTabStore();
+tabStore.ensureTab();
 
 function loadSession(session: SavedSession) {
-  sessionStore.requestLoadSession(session);
+  void tabStore.openSession(session);
 }
 </script>
 
@@ -65,6 +57,12 @@ function loadSession(session: SavedSession) {
   min-height: 0;
   display: flex;
   overflow: hidden;
+}
+.workspaces {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
 }
 .workspace {
   flex: 1;

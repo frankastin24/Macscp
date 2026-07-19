@@ -1,11 +1,13 @@
-import { Client, SFTPWrapper } from "ssh2";
+import { Client, SFTPWrapper, type ClientChannel, type FileEntryWithStats as SftpFileEntry } from "ssh2";
 import path from "node:path/posix";
 import type { SftpConnectionConfig } from "../../shared/sftp/SftpConnection";
 import type { FileEntry } from "../../shared/filesystem/FileEntry";
+import { runWithConcurrency } from "../../shared/utils/runWithConcurrency";
 
 export class SftpService {
     private client: Client | null = null;
     private sftp: SFTPWrapper | null = null;
+    private shell: ClientChannel | null = null;
 
     async connect(config: SftpConnectionConfig): Promise<boolean> {
         await this.disconnect();
@@ -36,28 +38,8 @@ export class SftpService {
         return true;
     }
 
-    async testConnection(config: SftpConnectionConfig): Promise<boolean> {
-        const temp = new Client();
-
-        await new Promise<void>((resolve, reject) => {
-            temp
-                .on("ready", () => resolve())
-                .on("error", reject)
-                .connect({
-                    host: config.host,
-                    port: config.port || 22,
-                    username: config.username,
-                    password: config.password,
-                    privateKey: config.privateKey,
-                    readyTimeout: 10000,
-                });
-        });
-
-        temp.end();
-        return true;
-    }
-
     async disconnect(): Promise<void> {
+        this.closeShell();
         if (this.client) {
             this.client.end();
         }
@@ -66,12 +48,52 @@ export class SftpService {
         this.sftp = null;
     }
 
+    async startShell(
+        onData: (data: string) => void,
+        onClose: () => void
+    ): Promise<void> {
+        if (!this.client) throw new Error("Not connected to SSH server");
+        this.closeShell();
+
+        this.shell = await new Promise<ClientChannel>((resolve, reject) => {
+            this.client!.shell({ term: "xterm-256color", cols: 120, rows: 30 }, (err, stream) => {
+                if (err) reject(err);
+                else resolve(stream);
+            });
+        });
+
+        const shell = this.shell;
+        shell.on("data", (data: Buffer) => onData(data.toString("utf8")));
+        shell.stderr.on("data", (data: Buffer) => onData(data.toString("utf8")));
+        shell.on("close", () => {
+            if (this.shell === shell) this.shell = null;
+            onClose();
+        });
+    }
+
+    writeShell(data: string): void {
+        if (!this.shell) throw new Error("SSH terminal is not open");
+        this.shell.write(data);
+    }
+
+    resizeShell(cols: number, rows: number): void {
+        if (!this.shell) return;
+        this.shell.setWindow(rows, cols, 0, 0);
+    }
+
+    closeShell(): void {
+        if (!this.shell) return;
+        const shell = this.shell;
+        this.shell = null;
+        shell.end();
+    }
+
     async listDirectory(remotePath = "."): Promise<FileEntry[]> {
         if (!this.sftp) {
             throw new Error("Not connected to SFTP server");
         }
 
-        const entries = await new Promise<any[]>((resolve, reject) => {
+        const entries = await new Promise<SftpFileEntry[]>((resolve, reject) => {
             this.sftp!.readdir(remotePath, (err, list) => {
                 if (err) reject(err);
                 else resolve(list);
@@ -159,7 +181,7 @@ export class SftpService {
             throw new Error("Not connected to SFTP server");
         }
 
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>(resolve => {
             this.sftp!.mkdir(remotePath, err => {
                 if (err) {
                     // ssh2 usually returns code 4 for "failure", including already exists.
@@ -213,6 +235,38 @@ export class SftpService {
         await walk(remotePath);
         return results;
     }
-}
 
-export const sftpService = new SftpService();
+    async deletePath(remotePath: string, type: FileEntry["type"]): Promise<void> {
+        if (!this.sftp) throw new Error("Not connected to SFTP server");
+
+        if (type === "directory") {
+            const entries = await this.listDirectory(remotePath);
+            await runWithConcurrency(entries, 4, entry => this.deletePath(entry.path, entry.type));
+            await new Promise<void>((resolve, reject) => {
+                this.sftp!.rmdir(remotePath, err => err ? reject(err) : resolve());
+            });
+            return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
+            this.sftp!.unlink(remotePath, err => err ? reject(err) : resolve());
+        });
+    }
+
+    async readFile(remotePath: string): Promise<string> {
+        if (!this.sftp) throw new Error("Not connected to SFTP server");
+        return new Promise<string>((resolve, reject) => {
+            this.sftp!.readFile(remotePath, (err, data) => {
+                if (err) reject(err);
+                else resolve(data.toString("utf8"));
+            });
+        });
+    }
+
+    async writeFile(remotePath: string, content: string): Promise<void> {
+        if (!this.sftp) throw new Error("Not connected to SFTP server");
+        await new Promise<void>((resolve, reject) => {
+            this.sftp!.writeFile(remotePath, content, "utf8", err => err ? reject(err) : resolve());
+        });
+    }
+}

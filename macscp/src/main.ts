@@ -1,14 +1,13 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { ipcMain } from "electron";
 import { explorerService } from "./backend/filesystem/ExplorerService";
-import { sftpService } from "./backend/sftp/SftpService";
+import { sftpConnectionRegistry } from "./backend/sftp/SftpConnectionRegistry";
 import { transferManager } from "./backend/transfers/TransferManager";
 import { IPC_CHANNELS } from "./shared/ipc/IpcChannels";
 import { compareEngine } from "./backend/compare/CompareEngine";
 import { sessionService } from "./backend/sessions/SessionService"; 
-import { watchSyncService } from "./backend/watch/WatchSyncService";
+import { watchSyncManager } from "./backend/watch/WatchSyncManager";
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
@@ -17,8 +16,11 @@ if (started) {
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1440,
+    height: 900,
+    minWidth: 1100,
+    minHeight: 700,
+    center: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -41,20 +43,60 @@ ipcMain.handle("local:listDirectory", async (_event, dirPath?: string) => {
   return explorerService.listLocalDirectory(dirPath);
 });
 
-ipcMain.handle("sftp:testConnection", async (_event, config) => {
-  return sftpService.testConnection(config);
+ipcMain.handle(IPC_CHANNELS.localDelete, async (_event, targetPath: string) => {
+  return explorerService.deleteLocalPath(targetPath);
 });
 
-ipcMain.handle("sftp:connect", async (_event, config) => {
-  return sftpService.connect(config);
+ipcMain.handle(IPC_CHANNELS.fileReadLocal, async (_event, targetPath: string) => {
+  return explorerService.readLocalFile(targetPath);
 });
 
-ipcMain.handle("sftp:listDirectory", async (_event, remotePath?: string) => {
-  return sftpService.listDirectory(remotePath);
+ipcMain.handle(IPC_CHANNELS.fileWriteLocal, async (_event, request) => {
+  return explorerService.writeLocalFile(request.path, request.content);
 });
 
-ipcMain.handle("sftp:disconnect", async () => {
-  return sftpService.disconnect();
+ipcMain.handle(IPC_CHANNELS.sftpConnect, async (_event, request) => {
+  return sftpConnectionRegistry.connect(request.tabId, request.config);
+});
+
+ipcMain.handle(IPC_CHANNELS.sftpDisconnect, async (_event, tabId: string) => {
+  return sftpConnectionRegistry.disconnect(tabId);
+});
+
+ipcMain.handle(IPC_CHANNELS.sftpListDirectory, async (_event, request) => {
+  return sftpConnectionRegistry.get(request.tabId).listDirectory(request.remotePath);
+});
+
+ipcMain.handle(IPC_CHANNELS.sftpDelete, async (_event, request) => {
+  return sftpConnectionRegistry.get(request.tabId).deletePath(request.remotePath, request.type);
+});
+
+ipcMain.handle(IPC_CHANNELS.fileReadRemote, async (_event, request) => {
+  return sftpConnectionRegistry.get(request.tabId).readFile(request.path);
+});
+
+ipcMain.handle(IPC_CHANNELS.fileWriteRemote, async (_event, request) => {
+  return sftpConnectionRegistry.get(request.tabId).writeFile(request.path, request.content);
+});
+
+ipcMain.handle(IPC_CHANNELS.terminalStart, async (event, tabId: string) => {
+  const webContents = event.sender;
+  await sftpConnectionRegistry.get(tabId).startShell(
+    data => webContents.send(IPC_CHANNELS.terminalData, { tabId, data }),
+    () => webContents.send(IPC_CHANNELS.terminalClosed, { tabId })
+  );
+});
+
+ipcMain.handle(IPC_CHANNELS.terminalWrite, async (_event, request) => {
+  sftpConnectionRegistry.get(request.tabId).writeShell(request.data);
+});
+
+ipcMain.handle(IPC_CHANNELS.terminalResize, async (_event, request) => {
+  sftpConnectionRegistry.get(request.tabId).resizeShell(request.cols, request.rows);
+});
+
+ipcMain.handle(IPC_CHANNELS.terminalClose, async (_event, tabId: string) => {
+  sftpConnectionRegistry.get(tabId).closeShell();
 });
 
 ipcMain.handle(IPC_CHANNELS.transferEnqueue, async (_event, item) => {
@@ -62,9 +104,11 @@ ipcMain.handle(IPC_CHANNELS.transferEnqueue, async (_event, item) => {
 });
 ipcMain.handle(
   IPC_CHANNELS.compareDirectories,
-  async (_event, localPath: string, remotePath: string) => {
-    const localEntries = await explorerService.listLocalDirectory(localPath);
-    const remoteEntries = await sftpService.listDirectory(remotePath);
+  async (_event, request) => {
+    const localEntries = await explorerService.listLocalDirectory(request.localPath);
+    const remoteEntries = await sftpConnectionRegistry
+      .get(request.tabId)
+      .listDirectory(request.remotePath);
 
     return compareEngine.compare(localEntries, remoteEntries);
   }
@@ -73,8 +117,8 @@ ipcMain.handle(IPC_CHANNELS.walkLocalDirectory, async (_event, dirPath: string) 
   return explorerService.walkLocalDirectory(dirPath);
 });
 
-ipcMain.handle(IPC_CHANNELS.walkRemoteDirectory, async (_event, remotePath: string) => {
-  return sftpService.walkDirectory(remotePath);
+ipcMain.handle(IPC_CHANNELS.walkRemoteDirectory, async (_event, request) => {
+  return sftpConnectionRegistry.get(request.tabId).walkDirectory(request.remotePath);
 });
 
 ipcMain.handle(IPC_CHANNELS.sessionList, async () => {
@@ -107,18 +151,18 @@ ipcMain.handle(IPC_CHANNELS.sessionDelete, async (_event, id: string) => {
 });
 
 ipcMain.handle(IPC_CHANNELS.watchStart, async (_event, config) => {
-  return watchSyncService.start(config);
+  return watchSyncManager.start(config);
 });
 
-ipcMain.handle(IPC_CHANNELS.watchStop, async () => {
-  return watchSyncService.stop();
+ipcMain.handle(IPC_CHANNELS.watchStop, async (_event, tabId: string) => {
+  return watchSyncManager.stop(tabId);
 });
 
-ipcMain.handle(IPC_CHANNELS.watchStatus, async () => {
-  return watchSyncService.status();
+ipcMain.handle(IPC_CHANNELS.tabDispose, async (_event, tabId: string) => {
+  if (transferManager.hasActive(tabId)) transferManager.cancelForTab(tabId);
+  await watchSyncManager.stop(tabId);
+  await sftpConnectionRegistry.disconnect(tabId);
 });
-
-
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -140,6 +184,11 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+app.on('before-quit', () => {
+  void watchSyncManager.stopAll();
+  void sftpConnectionRegistry.disconnectAll();
 });
 
 // In this file you can include the rest of your app's specific main process

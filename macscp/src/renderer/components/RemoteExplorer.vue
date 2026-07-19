@@ -1,22 +1,22 @@
 <template>
   <Explorer
     title="Remote"
-    :status="explorerStore.remoteConnected ? explorer.currentPath.value : 'Not connected'"
+    :status="connected ? explorer.currentPath.value : 'Not connected'"
     :entries="explorer.entries.value"
     :current-path="explorer.currentPath.value"
     :error="explorer.error.value"
-    :empty-message="explorerStore.remoteConnected ? '' : 'Not connected'"
+    :empty-message="connected ? '' : 'Not connected'"
     :can-go-parent="
-      explorerStore.remoteConnected &&
+      connected &&
       explorer.currentPath.value !== '.' &&
       explorer.currentPath.value !== '/'
     "
-    @open="explorer.open"
+    @open="handleOpen"
     @refresh="explorer.refresh"
     @go-parent="explorer.goParent"
     @go-path="explorer.goToPath"
     @selection-change="explorer.setSelection"
-    :compare-entries="compareStore.visible ? compareStore.entries : []"
+    :compare-entries="tab.compareVisible ? tab.compareEntries : []"
     side="remote"
     @context-action="handleContextAction"
     @drag-start="handleDragStart"
@@ -25,62 +25,67 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from "vue";
+import { computed, watch } from "vue";
+import type { FileEntry } from "../../shared/filesystem/FileEntry";
 import Explorer from "./explorer/Explorer.vue";
 import { useExplorer } from "../composables/useExplorer";
-import { useExplorerStore } from "../stores/explorerStore";
-import { useCompareStore } from "../stores/compareStore";
-import { watch } from "vue";
 import { useRefreshStore } from "../stores/refreshStore";
 import { useDragStore } from "../stores/dragStore";
 import { joinRemotePath } from "../../shared/utils/remotePath";
-const compareStore = useCompareStore();
-const explorerStore = useExplorerStore();
+import { useTabStore } from "../stores/tabStore";
+import { deleteConfirmation } from "../utils/deleteConfirmation";
+import { runWithConcurrency } from "../../shared/utils/runWithConcurrency";
+import { isIgnored } from "../../shared/utils/ignorePatterns";
+import { relativePath } from "../../shared/utils/relativePath";
+import { useEditorStore } from "../stores/editorStore";
+const props = defineProps<{ tabId: string }>();
+const tabStore = useTabStore();
+const tab = computed(() => tabStore.tabsById[props.tabId]);
+const connected = computed(() => tab.value.connection.state === "connected");
+const editorStore = useEditorStore();
 const dragStore = useDragStore();
 
 const explorer = useExplorer({
   side: "remote",
   initialPath: ".",
-  listDirectory: (path) => window.macscp.sftp.listDirectory(path),
+  listDirectory: (path) => window.macscp.sftp.listDirectory(props.tabId, path),
   onPathChange: path => {
-  explorerStore.setRemotePath(path);
-  compareStore.autoCompare(
-    explorerStore.localPath,
-    path,
-    explorerStore.remoteConnected
-  );
+  tab.value.remotePath = path;
 },
-  onSelectionChange: (entries) => explorerStore.setRemoteSelection(entries),
+  onSelectionChange: (entries) => { tab.value.remoteSelection = entries; },
 });
 
 const refreshStore = useRefreshStore();
 
 watch(
-  () => refreshStore.remoteRefreshToken,
+  () => refreshStore.remoteRefreshTokens[props.tabId],
   () => {
-    if (explorerStore.remoteConnected) {
+    if (connected.value) {
       explorer.refresh();
     }
   }
 );
 
 async function handleConnected() {
-  const remotePath = explorerStore.remotePath || ".";
-  explorerStore.setRemoteConnected(true);
+  const remotePath = tab.value.remotePath || ".";
   await explorer.load(remotePath);
 }
 
-onMounted(() => {
-  window.addEventListener("macscp:sftp-connected", handleConnected);
-});
+watch(connected, value => { if (value) void handleConnected(); });
 
-onUnmounted(() => {
-  window.removeEventListener("macscp:sftp-connected", handleConnected);
-});
+function handleOpen(entry: FileEntry) {
+  if (entry.type === "directory") {
+    explorer.open(entry);
+  } else if (entry.type === "file") {
+    void editorStore.open(props.tabId, "remote", entry);
+  }
+}
 
 async function queueDownloadFile(entry: FileEntry, targetPath: string) {
   await window.macscp.transfers.enqueue({
     id: crypto.randomUUID(),
+    tabId: props.tabId,
+    queueId: tab.value.transferQueueId,
     direction: "download",
     sourcePath: entry.path,
     targetPath,
@@ -103,39 +108,57 @@ async function handleContextAction(payload: { action: string; entry: FileEntry }
     if (payload.entry.type === "file") {
       await queueDownloadFile(
         payload.entry,
-        `${explorerStore.localPath.replace(/\/$/, "")}/${payload.entry.name}`
+        `${tab.value.localPath.replace(/\/$/, "")}/${payload.entry.name}`
       );
     }
 
     if (payload.entry.type === "directory") {
-      const files = await window.macscp.sftp.walkDirectory(payload.entry.path);
+      const files = await window.macscp.sftp.walkDirectory(props.tabId, payload.entry.path);
 
       for (const file of files) {
         if (file.type !== "file") continue;
 
-        const relativePath = file.path.replace(
+        const downloadRelativePath = file.path.replace(
           payload.entry.path.replace(/\/$/, "") + "/",
           ""
         );
-        const localTarget = `${explorerStore.localPath.replace(/\/$/, "")}/${
+        const localTarget = `${tab.value.localPath.replace(/\/$/, "")}/${
           payload.entry.name
-        }/${relativePath}`;
+        }/${downloadRelativePath}`;
 
         await queueDownloadFile(file, localTarget);
       }
     }
   }
+
+  if (payload.action === "delete") {
+    const entries = tab.value.remoteSelection.some(item => item.path === payload.entry.path)
+      ? tab.value.remoteSelection
+      : [payload.entry];
+    if (!window.confirm(deleteConfirmation(entries, "remote"))) return;
+
+    try {
+      await runWithConcurrency(entries, 4, entry =>
+        window.macscp.sftp.delete(props.tabId, entry.path, entry.type)
+      );
+      explorer.setSelection([]);
+      await explorer.refresh();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Failed to delete remote item");
+    }
+  }
 }
+
 function handleDragStart(entry: FileEntry) {
-  const selected = explorerStore.remoteSelection.some(item => item.path === entry.path)
-    ? explorerStore.remoteSelection
+  const selected = tab.value.remoteSelection.some(item => item.path === entry.path)
+    ? tab.value.remoteSelection
     : [entry];
 
-  dragStore.start("remote", selected);
+  dragStore.start(props.tabId, "remote", selected);
 }
 
 async function handleDropItems() {
-  if (dragStore.source !== "local") return;
+  if (dragStore.tabId !== props.tabId || dragStore.source !== "local") return;
 
   for (const entry of dragStore.entries) {
     await uploadEntry(entry);
@@ -148,7 +171,7 @@ async function uploadEntry(entry: FileEntry) {
   if (entry.type === "file") {
     await queueUploadFile(
       entry,
-      joinRemotePath(explorerStore.remotePath, entry.name)
+      joinRemotePath(tab.value.remotePath, entry.name)
     );
   }
 
@@ -157,11 +180,12 @@ async function uploadEntry(entry: FileEntry) {
 
     for (const file of files) {
       if (file.type !== "file") continue;
+      if (isIgnored(relativePath(file.path, tab.value.localPath), tab.value.ignorePatterns)) continue;
 
-      const relativePath = file.path.replace(entry.path.replace(/\/$/, "") + "/", "");
+      const uploadRelativePath = file.path.replace(entry.path.replace(/\/$/, "") + "/", "");
       const remoteTarget = joinRemotePath(
-        joinRemotePath(explorerStore.remotePath, entry.name),
-        relativePath
+        joinRemotePath(tab.value.remotePath, entry.name),
+        uploadRelativePath
       );
 
       await queueUploadFile(file, remoteTarget);
@@ -172,6 +196,8 @@ async function uploadEntry(entry: FileEntry) {
 async function queueUploadFile(entry: FileEntry, targetPath: string) {
   await window.macscp.transfers.enqueue({
     id: crypto.randomUUID(),
+    tabId: props.tabId,
+    queueId: tab.value.transferQueueId,
     direction: "upload",
     sourcePath: entry.path,
     targetPath,

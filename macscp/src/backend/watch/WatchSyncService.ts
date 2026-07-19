@@ -1,8 +1,9 @@
-import chokidar, { FSWatcher } from "chokidar";
+import { watch, type FSWatcher } from "chokidar";
 import path from "node:path";
 import { transferManager } from "../transfers/TransferManager";
 import type { WatchConfig } from "../../shared/watch/WatchConfig";
 import type { TransferItem } from "../../shared/transfers/TransferItem";
+import { isIgnored } from "../../shared/utils/ignorePatterns";
 
 export class WatchSyncService {
   private watcher: FSWatcher | null = null;
@@ -13,13 +14,8 @@ export class WatchSyncService {
   await this.stop();
   this.config = config;
 
-  this.watcher = chokidar.watch(config.localPath, {
-    ignored: [
-      "**/.git/**",
-      "**/node_modules/**",
-      "**/.DS_Store",
-      "**/.Trash/**",
-    ],
+  this.watcher = watch(config.localPath, {
+    ignored: candidatePath => isIgnored(path.relative(config.localPath, candidatePath), config.ignorePatterns),
     ignoreInitial: true,
     persistent: true,
     awaitWriteFinish: {
@@ -61,13 +57,6 @@ export class WatchSyncService {
   return { watching: false };
 }
 
-  status() {
-    return {
-      watching: Boolean(this.watcher),
-      config: this.config,
-    };
-  }
-
   private queueUpload(filePath: string) {
     if (!this.config) return;
 
@@ -90,6 +79,8 @@ export class WatchSyncService {
 
     const item: TransferItem = {
       id: crypto.randomUUID(),
+      tabId: this.config.tabId,
+      queueId: this.config.queueId,
       direction: "upload",
       sourcePath: filePath,
       targetPath: remoteTarget,
@@ -114,5 +105,3 @@ export class WatchSyncService {
     return `${cleanBase}/${cleanRelative}`;
   }
 }
-
-export const watchSyncService = new WatchSyncService();

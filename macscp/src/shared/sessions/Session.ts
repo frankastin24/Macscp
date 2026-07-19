@@ -6,6 +6,7 @@ export interface SavedSession {
   username: string;
   remotePath: string;
   localPath: string;
+  ignorePatterns?: string[];
   encryptedPassword?: string;
   hasPassword?: boolean;
   createdAt: number;

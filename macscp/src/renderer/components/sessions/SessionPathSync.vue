@@ -1,25 +1,31 @@
 <template></template>
 
 <script setup lang="ts">
-import { watch } from "vue";
-import { useExplorerStore } from "../../stores/explorerStore";
+import { onUnmounted, watch } from "vue";
 import { useSessionStore } from "../../stores/sessionStore";
+import { useTabStore } from "../../stores/tabStore";
+const props = defineProps<{ tabId: string }>();
 
-const explorerStore = useExplorerStore();
 const sessionStore = useSessionStore();
+const tabStore = useTabStore();
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 watch(
-  () => [explorerStore.localPath, explorerStore.remotePath],
+  () => [tabStore.tabsById[props.tabId].localPath, tabStore.tabsById[props.tabId].remotePath],
   ([localPath, remotePath]) => {
-    if (!sessionStore.activeSessionId) return;
+    const sessionId = tabStore.tabsById[props.tabId].sessionId;
+    if (!sessionId) return;
 
     if (timer) clearTimeout(timer);
 
     timer = setTimeout(() => {
-      sessionStore.updateActiveSessionPaths(localPath, remotePath);
+      sessionStore.updateSessionPaths(sessionId, localPath, remotePath);
     }, 500);
   }
 );
+
+onUnmounted(() => {
+  if (timer) clearTimeout(timer);
+});
 </script>

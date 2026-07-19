@@ -1,98 +1,64 @@
 <template>
-  <div v-if="visible && activeItem" class="overlay">
-    <section class="popup">
+  <div v-if="tab.transferPopupVisible" class="overlay">
+    <section class="popup" role="dialog" aria-modal="true" aria-labelledby="sync-title">
       <header>
-        <strong>{{ title }}</strong>
-        <span>{{ activeItem.progress }}%</span>
+        <div>
+          <strong id="sync-title">Watch synchronization</strong>
+          <div class="summary">{{ summary }}</div>
+        </div>
+        <strong>{{ overallProgress }}%</strong>
       </header>
 
-      <div class="file">
-        <div class="label">Current file</div>
-        <div class="name">{{ activeItem.filename }}</div>
-      </div>
-
-      <div class="progress">
-        <div class="bar" :style="{ width: `${activeItem.progress}%` }"></div>
-      </div>
-
-      <div class="meta">
-        {{ formatSize(activeItem.bytesTransferred) }}
-        /
-        {{ formatSize(activeItem.totalBytes) }}
-      </div>
-
-      <hr />
-
-      <div class="file">
-        <div class="label">Total progress</div>
-        <div class="name">
-          File {{ completedCount + runningCount }} of {{ totalCount }}
-        </div>
-      </div>
-
-      <div class="progress">
+      <div class="progress overall-progress">
         <div class="bar" :style="{ width: `${overallProgress}%` }"></div>
       </div>
 
-      <div class="meta">
-        {{ completedCount }} completed,
-        {{ queuedCount }} queued,
-        {{ failedCount }} failed
+      <div class="files">
+        <div v-if="!currentItem" class="empty">
+          {{ idleMessage }}
+        </div>
+        <div v-else class="file-row">
+          <div class="file-heading">
+            <span class="direction">{{ currentItem.direction === "upload" ? "Upload" : "Download" }}</span>
+            <span class="name" :title="currentItem.sourcePath">{{ currentItem.filename }}</span>
+            <span class="status" :class="currentItem.status">{{ currentItem.status }}</span>
+          </div>
+          <div class="progress">
+            <div
+              class="bar"
+              :class="{ failed: currentItem.status === 'failed' }"
+              :style="{ width: `${currentItem.progress}%` }"
+            ></div>
+          </div>
+          <div class="meta">
+            {{ formatSize(currentItem.bytesTransferred) }} / {{ formatSize(currentItem.totalBytes) }}
+            <span v-if="currentItem.error" class="error">{{ currentItem.error }}</span>
+          </div>
+        </div>
       </div>
+
+      <footer>
+        <span>{{ completedCount }} completed · {{ failedCount }} failed · {{ pendingCount }} remaining</span>
+        <div class="actions">
+          <button v-if="tab.watching" class="stop" @click="stopWatchSync">
+            Stop Watch Sync
+          </button>
+          <button @click="closePopup">{{ closeLabel }}</button>
+        </div>
+      </footer>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { useTransferStore } from "../../stores/transferStore";
 import { formatSize } from "../../../shared/utils/formatSize";
+import { useTransferPopup } from "../../composables/useTransferPopup";
+const props = defineProps<{ tabId: string }>();
 
-const store = useTransferStore();
-
-const activeItem = computed(() =>
-  store.items.find(item => item.status === "running") ||
-  store.items.find(item => item.status === "queued") ||
-  null
-);
-const visible = computed(() =>
-  store.items.some(item => item.status === "queued" || item.status === "running")
-);
-
-const totalCount = computed(() => store.items.length);
-
-const completedCount = computed(
-  () => store.items.filter(item => item.status === "completed").length
-);
-
-const runningCount = computed(
-  () => store.items.filter(item => item.status === "running").length
-);
-
-const queuedCount = computed(
-  () => store.items.filter(item => item.status === "queued").length
-);
-
-const failedCount = computed(
-  () => store.items.filter(item => item.status === "failed").length
-);
-
-const title = computed(() => {
-  if (!activeItem.value) return "Transfer";
-
-  return activeItem.value.direction === "upload"
-    ? "Uploading"
-    : "Downloading";
-});
-
-const overallProgress = computed(() => {
-  if (!totalCount.value) return 0;
-
-  const completed = completedCount.value;
-  const current = activeItem.value?.progress ?? 0;
-
-  return Math.round(((completed + current / 100) / totalCount.value) * 100);
-});
+const {
+  tab, currentItem, completedCount, failedCount, pendingCount,
+  overallProgress, summary, closeLabel, idleMessage, stopWatchSync, closePopup,
+} = useTransferPopup(props.tabId);
 </script>
 
 <style scoped>
@@ -100,68 +66,47 @@ const overallProgress = computed(() => {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  pointer-events: none;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
+  display: grid;
+  place-items: center;
   padding: 24px;
+  background: rgba(0, 0, 0, 0.48);
 }
-
 .popup {
-  width: 420px;
-  background: #202020;
-  border: 1px solid #555;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-  border-radius: 8px;
-  padding: 14px;
-  color: white;
-  pointer-events: auto;
-}
-
-header {
+  width: min(680px, calc(100vw - 48px));
+  max-height: min(620px, calc(100vh - 48px));
   display: flex;
+  flex-direction: column;
+  padding: 18px;
+  color: white;
+  background: #202020;
+  border: 1px solid #666;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+header, footer, .file-heading {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 12px;
 }
-
-.file {
-  margin-bottom: 8px;
-}
-
-.label {
-  font-size: 11px;
-  color: #999;
-  margin-bottom: 3px;
-}
-
-.name {
-  font-size: 13px;
-  word-break: break-all;
-}
-
-.progress {
-  height: 10px;
-  background: #333;
-  border: 1px solid #444;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 6px;
-}
-
-.bar {
-  height: 100%;
-  background: #4aa3ff;
-}
-
-.meta {
-  font-size: 12px;
-  color: #aaa;
-  margin-bottom: 10px;
-}
-
-hr {
-  border: none;
-  border-top: 1px solid #444;
-  margin: 12px 0;
-}
+.summary, .meta, footer { color: #aaa; font-size: 12px; }
+.summary { margin-top: 4px; }
+.overall-progress { margin: 14px 0; height: 12px; }
+.files { overflow: auto; border-top: 1px solid #444; border-bottom: 1px solid #444; }
+.empty { padding: 28px 12px; color: #aaa; text-align: center; font-size: 13px; }
+.file-row { padding: 11px 2px; border-bottom: 1px solid #333; }
+.file-row:last-child { border-bottom: 0; }
+.direction { width: 72px; color: #aaa; font-size: 12px; }
+.name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status { text-transform: capitalize; font-size: 12px; }
+.status.completed { color: #70cf88; }
+.status.failed, .error { color: #ff7777; }
+.progress { height: 8px; margin: 7px 0 5px; overflow: hidden; background: #333; border-radius: 999px; }
+.bar { height: 100%; background: #4aa3ff; transition: width 120ms linear; }
+.bar.failed { background: #d9534f; }
+.error { float: right; margin-left: 12px; }
+footer { margin-top: 14px; }
+.actions { display: flex; gap: 8px; }
+button { padding: 5px 14px; color: white; background: #333; border: 1px solid #666; }
+.stop { border-color: #a65353; color: #ffb3b3; }
 </style>

@@ -3,6 +3,8 @@ export type TransferStatus = "queued" | "running" | "completed" | "failed" | "ca
 
 export interface TransferItem {
   id: string;
+  tabId: string;
+  queueId: string;
   direction: TransferDirection;
   sourcePath: string;
   targetPath: string;

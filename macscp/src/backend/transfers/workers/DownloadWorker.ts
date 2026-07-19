@@ -1,11 +1,12 @@
 import fs from "node:fs/promises";
 import type { TransferItem } from "../../../shared/transfers/TransferItem";
-import { sftpService } from "../../sftp/SftpService";
+import type { SftpService } from "../../sftp/SftpService";
 import { getLocalDirectory } from "../utils/pathUtils";
 
 export class DownloadWorker {
   async run(
     item: TransferItem,
+    sftpService: SftpService,
     onProgress: (item: TransferItem) => void
   ): Promise<TransferItem> {
     item.status = "running";
@@ -32,6 +33,7 @@ export class DownloadWorker {
 
       return item;
     } catch (err) {
+      if ((item as TransferItem).status === "cancelled") return item;
       item.status = "failed";
       item.error = err instanceof Error ? err.message : "Download failed";
       onProgress(item);

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { FileEntry } from "../../../shared/filesystem/FileEntry";
-import type { FileSystemProvider } from "../FileSystemProvider";
+import type { FileEntry } from "../../shared/filesystem/FileEntry";
+import type { FileSystemProvider } from "./FileSystemProvider";
 
 export class LocalFileSystemProvider implements FileSystemProvider {
     async listDirectory(dirPath: string): Promise<FileEntry[]> {
@@ -54,6 +54,14 @@ export class LocalFileSystemProvider implements FileSystemProvider {
 
     async rename(oldPath: string, newPath: string): Promise<void> {
         await fs.rename(oldPath, newPath);
+    }
+
+    async readFile(targetPath: string): Promise<string> {
+        return fs.readFile(targetPath, "utf8");
+    }
+
+    async writeFile(targetPath: string, content: string): Promise<void> {
+        await fs.writeFile(targetPath, content, "utf8");
     }
 
     async walkDirectory(dirPath: string): Promise<FileEntry[]> {

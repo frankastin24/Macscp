@@ -59,6 +59,12 @@
 
   <hr />
 
+  <button class="danger" @click="runContextAction('delete')">
+    Delete
+  </button>
+
+  <hr />
+
   <button @click="runContextAction('refresh')">
     Refresh
   </button>
@@ -67,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import type { FileEntry } from "../../../shared/filesystem/FileEntry";
 import type { CompareEntry } from "../../../shared/compare/CompareEntry";
 import ExplorerRow from "./parts/ExplorerRow.vue";
@@ -89,16 +95,16 @@ const props = defineProps<{
 const emit = defineEmits<{
   open: [entry: FileEntry];
   refresh: [];
-  goParent: [];
-  goPath: [path: string];
-  selectionChange: [entries: FileEntry[]];
-  contextAction: [payload: { action: string; entry: FileEntry }];
-  dragStart: [entry: FileEntry];
-  dropItems: [];
+  "go-parent": [];
+  "go-path": [path: string];
+  "selection-change": [entries: FileEntry[]];
+  "context-action": [payload: { action: string; entry: FileEntry }];
+  "drag-start": [entry: FileEntry];
+  "drop-items": [];
 }>();
 
 function handleDragStart(entry: FileEntry) {
-  emit("dragStart", entry);
+  emit("drag-start", entry);
 }
 
 const contextMenu = ref<{
@@ -121,7 +127,7 @@ watch(
   () => {
     selectedPaths.value = [];
     lastSelectedIndex.value = null;
-    emit("selectionChange", []);
+    emit("selection-change", []);
   }
 );
 watch(
@@ -151,7 +157,7 @@ function handleDragLeave() {
 function handleDrop() {
   dragDepth.value = 0;
   isDragOver.value = false;
-  emit("dropItems");
+  emit("drop-items");
 }
 
 const sortedEntries = computed(() => {
@@ -182,13 +188,6 @@ function sortLabel(key: SortKey) {
   if (sortKey.value !== key) return "";
   return sortDirection.value === "asc" ? "▲" : "▼";
 }
-
-function icon(type: FileEntry["type"]) {
-  return type === "directory" ? "📁" : "📄";
-}
-
-import { formatSize } from "../../shared/utils/formatSize";
-import { formatDate } from "../../shared/utils/formatDate";
 
 const selectedPaths = ref<string[]>([]);
 const lastSelectedIndex = ref<number | null>(null);
@@ -222,7 +221,7 @@ function emitSelection() {
     selectedPaths.value.includes(entry.path)
   );
 
-  emit("selectionChange", selected);
+  emit("selection-change", selected);
 }
 function compareFor(entry: FileEntry) {
   return props.compareEntries?.find(compare => compare.name === entry.name);
@@ -232,20 +231,6 @@ function compareStatus(entry: FileEntry) {
   return compareFor(entry)?.status || "";
 }
 
-function compareLabel(entry: FileEntry) {
-  const status = compareStatus(entry);
-
-  const labels: Record<string, string> = {
-    identical: "✓",
-    "local-only": "↑",
-    "remote-only": "↓",
-    "local-newer": "↑ newer",
-    "remote-newer": "↓ newer",
-    different: "⚠",
-  };
-
-  return labels[status] || "";
-}
 function openContextMenu(entry: FileEntry, index: number, event: MouseEvent) {
   if (!selectedPaths.value.includes(entry.path)) {
     selectEntry(entry, index, event);
@@ -266,14 +251,13 @@ function closeContextMenu() {
 function runContextAction(action: string) {
   if (!contextMenu.value.entry) return;
 
-  emit("contextAction", {
+  emit("context-action", {
     action,
     entry: contextMenu.value.entry,
   });
 
   closeContextMenu();
 }
-import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 onMounted(() => {
   window.addEventListener("click", closeContextMenu);
 });
@@ -326,13 +310,6 @@ input {
   padding: 5px 8px;
 }
 
-.explorer {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .list {
   flex: 1;
   min-height: 0;
@@ -363,18 +340,6 @@ input {
   padding: 20px;
   color: #aaa;
 }
-tr.selected {
-  background: #1f5f99;
-}
-
-tr.selected:hover {
-  background: #2670b8;
-}
-.status-cell {
-  width: 80px;
-  color: #aaa;
-}
-
 .identical {
   color: #999;
 }
@@ -393,14 +358,6 @@ tr.selected:hover {
   color: #ff7777;
 }
 
-tr.selected {
-  background: #1f5f99;
-  color: white;
-}
-
-tr.selected:hover {
-  background: #2670b8;
-}
 .context-menu {
   position: fixed;
   z-index: 9999;
@@ -423,6 +380,7 @@ tr.selected:hover {
 .context-menu button:hover {
   background: #3a3a3a;
 }
+.context-menu .danger { color: #ff9a9a; }
 
 .context-menu hr {
   border: none;

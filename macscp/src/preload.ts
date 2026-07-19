@@ -14,20 +14,22 @@ contextBridge.exposeInMainWorld("macscp", {
             ipcRenderer.invoke("local:listDirectory", dirPath),
         walkDirectory: (dirPath: string): Promise<FileEntry[]> =>
             ipcRenderer.invoke(IPC_CHANNELS.walkLocalDirectory, dirPath),
+        delete: (targetPath: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.localDelete, targetPath),
     },
     sftp: {
-        testConnection: (config: SftpConnectionConfig): Promise<boolean> =>
-            ipcRenderer.invoke("sftp:testConnection", config),
-        connect: (config: SftpConnectionConfig): Promise<boolean> =>
-            ipcRenderer.invoke("sftp:connect", config),
+        connect: (tabId: string, config: SftpConnectionConfig): Promise<boolean> =>
+            ipcRenderer.invoke(IPC_CHANNELS.sftpConnect, { tabId, config }),
+        disconnect: (tabId: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.sftpDisconnect, tabId),
 
-        listDirectory: (remotePath?: string): Promise<FileEntry[]> =>
-            ipcRenderer.invoke("sftp:listDirectory", remotePath),
+        listDirectory: (tabId: string, remotePath?: string): Promise<FileEntry[]> =>
+            ipcRenderer.invoke(IPC_CHANNELS.sftpListDirectory, { tabId, remotePath }),
 
-        disconnect: (): Promise<void> =>
-            ipcRenderer.invoke("sftp:disconnect"),
-        walkDirectory: (remotePath: string): Promise<FileEntry[]> =>
-            ipcRenderer.invoke(IPC_CHANNELS.walkRemoteDirectory, remotePath),
+        walkDirectory: (tabId: string, remotePath: string): Promise<FileEntry[]> =>
+            ipcRenderer.invoke(IPC_CHANNELS.walkRemoteDirectory, { tabId, remotePath }),
+        delete: (tabId: string, remotePath: string, type: FileEntry["type"]): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.sftpDelete, { tabId, remotePath, type }),
     },
     transfers: {
         enqueue: (item: TransferItem): Promise<TransferItem> =>
@@ -46,8 +48,8 @@ contextBridge.exposeInMainWorld("macscp", {
         },
     },
     compare: {
-        directories: (localPath: string, remotePath: string): Promise<CompareEntry[]> =>
-            ipcRenderer.invoke(IPC_CHANNELS.compareDirectories, localPath, remotePath),
+        directories: (tabId: string, localPath: string, remotePath: string): Promise<CompareEntry[]> =>
+            ipcRenderer.invoke(IPC_CHANNELS.compareDirectories, { tabId, localPath, remotePath }),
     },
     sessions: {
         list: (): Promise<SavedSession[]> =>
@@ -66,11 +68,42 @@ contextBridge.exposeInMainWorld("macscp", {
         start: (config: WatchConfig) =>
             ipcRenderer.invoke(IPC_CHANNELS.watchStart, config),
 
-        stop: () =>
-            ipcRenderer.invoke(IPC_CHANNELS.watchStop),
-
-        status: () =>
-            ipcRenderer.invoke(IPC_CHANNELS.watchStatus),
+        stop: (tabId: string) =>
+            ipcRenderer.invoke(IPC_CHANNELS.watchStop, tabId),
+    },
+    tabs: {
+        dispose: (tabId: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.tabDispose, tabId),
+    },
+    terminal: {
+        start: (tabId: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.terminalStart, tabId),
+        write: (tabId: string, data: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.terminalWrite, { tabId, data }),
+        resize: (tabId: string, cols: number, rows: number): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.terminalResize, { tabId, cols, rows }),
+        close: (tabId: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.terminalClose, tabId),
+        onData: (callback: (payload: { tabId: string; data: string }) => void) => {
+            const listener = (_event: Electron.IpcRendererEvent, payload: { tabId: string; data: string }) => callback(payload);
+            ipcRenderer.on(IPC_CHANNELS.terminalData, listener);
+            return () => ipcRenderer.removeListener(IPC_CHANNELS.terminalData, listener);
+        },
+        onClosed: (callback: (payload: { tabId: string }) => void) => {
+            const listener = (_event: Electron.IpcRendererEvent, payload: { tabId: string }) => callback(payload);
+            ipcRenderer.on(IPC_CHANNELS.terminalClosed, listener);
+            return () => ipcRenderer.removeListener(IPC_CHANNELS.terminalClosed, listener);
+        },
+    },
+    files: {
+        readLocal: (path: string): Promise<string> =>
+            ipcRenderer.invoke(IPC_CHANNELS.fileReadLocal, path),
+        writeLocal: (path: string, content: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.fileWriteLocal, { path, content }),
+        readRemote: (tabId: string, path: string): Promise<string> =>
+            ipcRenderer.invoke(IPC_CHANNELS.fileReadRemote, { tabId, path }),
+        writeRemote: (tabId: string, path: string, content: string): Promise<void> =>
+            ipcRenderer.invoke(IPC_CHANNELS.fileWriteRemote, { tabId, path, content }),
     },
 
 });

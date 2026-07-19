@@ -10,4 +10,8 @@ export interface FileSystemProvider {
   delete(path: string): Promise<void>;
 
   rename(oldPath: string, newPath: string): Promise<void>;
+
+  readFile(path: string): Promise<string>;
+
+  writeFile(path: string, content: string): Promise<void>;
 }

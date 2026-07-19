@@ -1,10 +1,11 @@
 import type { TransferItem } from "../../../shared/transfers/TransferItem";
-import { sftpService } from "../../sftp/SftpService";
+import type { SftpService } from "../../sftp/SftpService";
 import { getRemoteDirectory } from "../utils/pathUtils";
 
 export class UploadWorker {
   async run(
     item: TransferItem,
+    sftpService: SftpService,
     onProgress: (item: TransferItem) => void
   ): Promise<TransferItem> {
     item.status = "running";
@@ -31,6 +32,7 @@ export class UploadWorker {
 
       return item;
     } catch (err) {
+      if ((item as TransferItem).status === "cancelled") return item;
       item.status = "failed";
       item.error = err instanceof Error ? err.message : "Upload failed";
       onProgress(item);

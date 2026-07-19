@@ -22,6 +22,18 @@ export class ExplorerService {
         const provider = this.localProvider as LocalFileSystemProvider;
         return provider.walkDirectory(dirPath);
     }
+
+    async deleteLocalPath(targetPath: string): Promise<void> {
+        return this.localProvider.delete(targetPath);
+    }
+
+    async readLocalFile(targetPath: string): Promise<string> {
+        return this.localProvider.readFile(targetPath);
+    }
+
+    async writeLocalFile(targetPath: string, content: string): Promise<void> {
+        return this.localProvider.writeFile(targetPath, content);
+    }
 }
 
 export const explorerService = new ExplorerService();
